@@ -74,8 +74,10 @@ class Bottleneck(nn.Module):
     def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
                  base_width=64, dilation=1, norm_layer=None):
         super(Bottleneck, self).__init__()
+
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
+            
         width = int(planes * (base_width / 64.)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv1x1(inplanes, width)
@@ -120,7 +122,7 @@ class ResNet(nn.Module):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
-        self.no_top = no_top
+        self.no_top = no_top # added to overlook the fc layers
         self.inplanes = 64
         self.dilation = 1
         if replace_stride_with_dilation is None:

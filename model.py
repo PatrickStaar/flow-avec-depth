@@ -59,7 +59,8 @@ def make_layer(inplanes, block, planes, blocks, stride=1):
         layers.append(block(inplanes, planes))
 
     return nn.Sequential(*layers)
-    
+
+## End of the Resblock
 
 
 ## main model
@@ -82,11 +83,11 @@ def deconv(inplane, outplane):
     )
 
 
-def features(cfg):
-    if cfg == 'resnet':
-        return resnet50(no_top=True)
-    else:
-        return nn.Sequential(OrderedDict())
+# def features(cfg):
+#     if cfg == 'resnet':
+#         return resnet50(no_top=True)
+#     else:
+#         return nn.Sequential(OrderedDict())
 
 
 class Features(nn.Module):
@@ -97,19 +98,25 @@ class Features(nn.Module):
         self.inputs = nn.Conv2d(6, 3,kernel_size=7,stride=2,padding=3,bias=False)
         self.base = features(config['base'])
 
-
-
         conv_planes = [32, 64, 128, 256, 512, 512, 512]
+        deconv_planes = [512, 512, 256, 128, 64, 32]
+
         self.conv1 = conv(3, conv_planes[0], k=7,stride=2,padding=3)
 
-        
-        blocks=[("feature_{}".format(i+2), 
+
+        blocks = OrderedDict([
+            ("feature_{}".format(i+2), 
                 make_layer(conv_planes[i],BasicBlock, conv_planes[i+1],blocks=2,stride=2)
             ) for i in range(6)
         ]
-
-        blocks = OrderedDict(blocks)
+)
         self.resblocks=nn.Sequential(blocks)
+
+        deconvs=OrderedDict([
+            ("deconv_{}".format(i),deconv(deconv_planes[i],deconv_planes[i+1])) for i in range(5)
+        ])
+
+        self.deconvs=nn.Sequential(deconvs)
 
         # self.conv2 = make_layer(conv_planes[0], BasicBlock, conv_planes[1], blocks=2, stride=2)
         # self.conv3 = make_layer(conv_planes[1], BasicBlock, conv_planes[2], blocks=2, stride=2)
@@ -118,6 +125,20 @@ class Features(nn.Module):
         # self.conv6 = make_layer(conv_planes[4], BasicBlock, conv_planes[5], blocks=2, stride=2)
         # self.conv7 = make_layer(conv_planes[5], BasicBlock, conv_planes[6], blocks=2, stride=2)
 
+    def forward(self,x):
+        x,y=x
+        input1=self.conv1(x)
+        input2=self.conv1(y)
+        x=th.cat([input1,input2],dim=-3)
+        x1=self.resblocks.conv_1(x)
+        x2=self.resblocks.conv_2(x1)
+        x3=self.resblocks.conv_3(x2)
+        x4=self.resblocks.conv_4(x3)
+        x5=self.resblocks.conv_5(x4)
+        x6=self.resblocks.conv_6(x5)
+
+        
+        return x
 
     def init_weights(self):
         # weights train from scratch
@@ -127,10 +148,7 @@ class Features(nn.Module):
                 if m.bias is not None:
                     m.bias.data.zero_()
 
-    def forward(self,x):
-        x=self.inputs(x)
-        x=self.features(x)
-        return x
+
 
 
 class end2end(nn.Module):

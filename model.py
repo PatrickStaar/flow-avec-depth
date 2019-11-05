@@ -8,20 +8,38 @@ from collections import OrderedDict
 
 ## ResNet
 def conv3x3(in_planes, out_planes, stride=1):
-    """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=False)
+    return nn.Sequential(
+        nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False),
+        nn.BatchNorm2d(planes),
+        nn.ReLU(inplace=True)
+    ) 
+
+def conv(in_planes, out_planes, k=3, stride=2, padding=1):
+    return nn.Sequential(
+        nn.Conv2d(in_planes, out_planes, k, stride, padding, bias=False,),
+        nn.BatchNorm2d(out_planes),
+        nn.ReLU()
+    )
+
+
+def deconv(inplane, outplane):
+    return nn.Sequential(
+        # 由于卷积核滑动过程中，边界情况的不确定，使得在运算步长大于 1 的反卷积时会出现多种合法输出尺寸
+        # pytorch 的反卷积层提供了 output_padding 供使用者选择输出，一般情况下我们希望输入输出尺寸以步长为比例
+        # 因此 output_padding 一般取 stride-1，同时 padding 取 (kernel_size - 1)/2 
+        nn.ConvTranspose2d(inplane,outplane,kernel_size=3,stride=2,padding=1,output_padding=1, bias=false),
+        # nn.BatchNorm2d(cfg[1]),
+        nn.ReLU()
+    )
+
 
 class BasicBlock(nn.Module):
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
-        self.conv1 = conv3x3(inplanes, planes, stride)
-        #self.bn1 = nn.BatchNorm2d(planes)
-        self.relu = nn.ReLU(inplace=True)
-        self.conv2 = conv3x3(planes, planes)
-        #self.bn2 = nn.BatchNorm2d(planes)
+        self.conv1 = conv(inplanes, planes, stride)
+        self.conv2 = conv(planes, planes, stride=1)
         self.downsample = downsample
         self.stride = stride
 
@@ -29,19 +47,15 @@ class BasicBlock(nn.Module):
         residual = x
 
         out = self.conv1(x)
-        #out = self.bn1(out)
-        out = self.relu(out)
-
         out = self.conv2(out)
-        #out = self.bn2(out)
 
         if self.downsample is not None:
             residual = self.downsample(x)
 
         out += residual
-        out = self.relu(out)
-
+        out = F.relu(out)
         return out
+
 
 def make_layer(inplanes, block, planes, blocks, stride=1):
     downsample = None
@@ -64,23 +78,7 @@ def make_layer(inplanes, block, planes, blocks, stride=1):
 
 
 ## main model
-def conv(in_planes, out_planes, k=3, stride=2, padding=1):
-    return nn.Sequential(
-        nn.Conv2d(in_planes, out_planes, k, stride, padding, bias=False,),
-        nn.BatchNorm2d(out_planes),
-        nn.ReLU()
-    )
 
-
-def deconv(inplane, outplane):
-    return nn.Sequential(
-        # 由于卷积核滑动过程中，边界情况的不确定，使得在运算步长大于 1 的反卷积时会出现多种合法输出尺寸
-        # pytorch 的反卷积层提供了 output_padding 供使用者选择输出，一般情况下我们希望输入输出尺寸以步长为比例
-        # 因此 output_padding 一般取 stride-1，同时 padding 取 (kernel_size - 1)/2 
-        nn.ConvTranspose2d(inplane,outplane,kernel_size=3,stride=2,padding=1,output_padding=1, bias=false),
-        # nn.BatchNorm2d(cfg[1]),
-        nn.ReLU()
-    )
 
 
 # def features(cfg):

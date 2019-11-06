@@ -94,7 +94,7 @@ class Features(nn.Module):
         super(Features, self).__init__()
         self.inplane=inplane
         self.inputs = nn.Conv2d(6, 3,kernel_size=7,stride=2,padding=3,bias=False)
-        self.base = features(config['base'])
+
 
         conv_planes = [32, 64, 128, 256, 512, 512, 512]
         deconv_planes = [512, 512, 256, 128, 64, 32]
@@ -111,17 +111,31 @@ class Features(nn.Module):
         self.resblocks=nn.Sequential(blocks)
 
         deconvs=OrderedDict([
-            ("deconv_{}".format(i),deconv(deconv_planes[i],deconv_planes[i+1])) for i in range(5)
+            ("deconv_{}".format(i+1),deconv(deconv_planes[i],deconv_planes[i+1])) for i in range(5)
         ])
 
         self.deconvs=nn.Sequential(deconvs)
-
+        self.output1=deconv(deconv_planes[1]*2,1)
+        self.output2=deconv(deconv_planes[2]*2,1)
+        self.output3=deconv(deconv_planes[3]*2,1)
+        self.output4=deconv(deconv_planes[4]*2,1)
+        self.output5=deconv(deconv_planes[5]*2,1)
+        *2
         # self.conv2 = make_layer(conv_planes[0], BasicBlock, conv_planes[1], blocks=2, stride=2)
         # self.conv3 = make_layer(conv_planes[1], BasicBlock, conv_planes[2], blocks=2, stride=2)
         # self.conv4 = make_layer(conv_planes[2], BasicBlock, conv_planes[3], blocks=2, stride=2)
         # self.conv5 = make_layer(conv_planes[3], BasicBlock, conv_planes[4], blocks=2, stride=2)
         # self.conv6 = make_layer(conv_planes[4], BasicBlock, conv_planes[5], blocks=2, stride=2)
         # self.conv7 = make_layer(conv_planes[5], BasicBlock, conv_planes[6], blocks=2, stride=2)
+        self.fc=nn.Sequential(
+            nn.Linear(7*7*512,512),
+            nn.Sigmoid(),
+            nn.Linear(512,256),
+            nn.Sigmoid(),
+            nn.Linear(256,6)
+        )
+
+
 
     def forward(self,x):
         x,y=x
@@ -135,6 +149,15 @@ class Features(nn.Module):
         x5=self.resblocks.conv_5(x4)
         x6=self.resblocks.conv_6(x5)
 
+        feature=F.max_pool2d(kernel_size=2,stride=2)
+
+        d1=self.deconvs.deconv_1(feature)
+        d_1_out = self.output1(th.cat(d1,x5))
+        d2=self.deconvs.deconv_2(th.cat([d1,d_1_out]))
+        d3=self.deconvs.deconv_3(feature)
+        d4=self.deconvs.deconv_4(feature)
+        d5=self.deconvs.deconv_5(feature)
+       
         
         return x
 
@@ -153,29 +176,6 @@ class end2end(nn.Module):
     def __init__(self,config):
         super(end2end,self).__init__()
         
-        self.features=Features(config['features'])
-        self.deconv1=deconv(512,6),
-        self.deconv2=deconv(256,6),
-        self.deconv3=deconv(128,6),
-        self.deconv4=deconv(64,6),
-
-        self.fc=nn.Sequential(
-            nn.Linear(7*7*512,512),
-            nn.Sigmoid()
-            nn.Linear(512,256),
-            nn.Sigmoid()
-            nn.Linear(256,6)
-        )
-
-        deconv_planes = [512, 512, 256, 128, 64, 32, 16]
-        self.deconv7 = deconv(conv_planes[6],   deconv_planes[0])
-        self.deconv6 = deconv(deconv_planes[0], deconv_planes[1])
-        self.deconv5 = deconv(deconv_planes[1], deconv_planes[2])
-        self.deconv4 = deconv(deconv_planes[2], deconv_planes[3])
-        self.deconv3 = deconv(deconv_planes[3], deconv_planes[4])
-        self.deconv2 = deconv(deconv_planes[4], deconv_planes[5])
-        self.deconv1 = deconv(deconv_planes[5], deconv_planes[6])
-
         self.iconv7 = make_layer(deconv_planes[0] + conv_planes[5], BasicBlock, deconv_planes[0], blocks=1, stride=1)
         self.iconv6 = make_layer(deconv_planes[1] + conv_planes[4], BasicBlock, deconv_planes[1], blocks=1, stride=1)
         self.iconv5 = make_layer(deconv_planes[2] + conv_planes[3], BasicBlock, deconv_planes[2], blocks=1, stride=1)
@@ -190,8 +190,6 @@ class end2end(nn.Module):
         self.predict_disp3 = conv(deconv_planes[4],1)
         self.predict_disp2 = conv(deconv_planes[5],1)
         self.predict_disp1 = conv(deconv_planes[6],1)
-
-
 
     def forward(self,x):
         x=features(x)

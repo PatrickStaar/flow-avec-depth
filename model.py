@@ -7,12 +7,12 @@ from collections import OrderedDict
 
 
 ## ResNet
-def conv3x3(in_planes, out_planes, stride=1):
-    return nn.Sequential(
-        nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False),
-        nn.BatchNorm2d(planes),
-        nn.ReLU(inplace=True)
-    ) 
+# def conv3x3(in_planes, out_planes, stride=1):
+#     return nn.Sequential(
+#         nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False),
+#         nn.BatchNorm2d(planes),
+#         nn.ReLU(inplace=True)
+#     ) 
 
 def conv(in_planes, out_planes, k=3, stride=2, padding=1):
     return nn.Sequential(
@@ -31,6 +31,9 @@ def deconv(inplane, outplane):
         # nn.BatchNorm2d(cfg[1]),
         nn.ReLU()
     )
+
+def cat(x):
+    return th.cat(x,-3)
 
 
 class BasicBlock(nn.Module):
@@ -87,7 +90,6 @@ def make_layer(inplanes, block, planes, blocks, stride=1):
 #     else:
 #         return nn.Sequential(OrderedDict())
 
-
 class Features(nn.Module):
     def __init__(self, config):
 
@@ -95,19 +97,17 @@ class Features(nn.Module):
         self.inplane=inplane
         self.inputs = nn.Conv2d(6, 3,kernel_size=7,stride=2,padding=3,bias=False)
 
-
         conv_planes = [32, 64, 128, 256, 512, 512, 512]
         deconv_planes = [512, 512, 256, 128, 64, 32]
 
         self.conv1 = conv(3, conv_planes[0], k=7,stride=2,padding=3)
 
-
         blocks = OrderedDict([
             ("feature_{}".format(i+2), 
                 make_layer(conv_planes[i],BasicBlock, conv_planes[i+1],blocks=2,stride=2)
             ) for i in range(6)
-        ]
-)
+        ])
+
         self.resblocks=nn.Sequential(blocks)
 
         deconvs=OrderedDict([
@@ -115,18 +115,19 @@ class Features(nn.Module):
         ])
 
         self.deconvs=nn.Sequential(deconvs)
+
         self.output1=deconv(deconv_planes[1]*2,1)
         self.output2=deconv(deconv_planes[2]*2,1)
         self.output3=deconv(deconv_planes[3]*2,1)
         self.output4=deconv(deconv_planes[4]*2,1)
         self.output5=deconv(deconv_planes[5]*2,1)
-        *2
-        # self.conv2 = make_layer(conv_planes[0], BasicBlock, conv_planes[1], blocks=2, stride=2)
-        # self.conv3 = make_layer(conv_planes[1], BasicBlock, conv_planes[2], blocks=2, stride=2)
-        # self.conv4 = make_layer(conv_planes[2], BasicBlock, conv_planes[3], blocks=2, stride=2)
-        # self.conv5 = make_layer(conv_planes[3], BasicBlock, conv_planes[4], blocks=2, stride=2)
-        # self.conv6 = make_layer(conv_planes[4], BasicBlock, conv_planes[5], blocks=2, stride=2)
-        # self.conv7 = make_layer(conv_planes[5], BasicBlock, conv_planes[6], blocks=2, stride=2)
+        
+        self.pose_estmation=nn.Sequential(
+            conv(512, 512),
+            conv(512, 256),
+            conv(256, 64),
+        )
+
         self.fc=nn.Sequential(
             nn.Linear(7*7*512,512),
             nn.Sigmoid(),
@@ -136,12 +137,12 @@ class Features(nn.Module):
         )
 
 
-
     def forward(self,x):
         x,y=x
         input1=self.conv1(x)
         input2=self.conv1(y)
-        x=th.cat([input1,input2],dim=-3)
+        x=cat([input1,input2])
+
         x1=self.resblocks.conv_1(x)
         x2=self.resblocks.conv_2(x1)
         x3=self.resblocks.conv_3(x2)
@@ -151,15 +152,37 @@ class Features(nn.Module):
 
         feature=F.max_pool2d(kernel_size=2,stride=2)
 
+        # Depth Part
         d1=self.deconvs.deconv_1(feature)
-        d_1_out = self.output1(th.cat(d1,x5))
-        d2=self.deconvs.deconv_2(th.cat([d1,d_1_out]))
-        d3=self.deconvs.deconv_3(feature)
-        d4=self.deconvs.deconv_4(feature)
-        d5=self.deconvs.deconv_5(feature)
+        d2=self.deconvs.deconv_2(cat([d1,x4]))
+        d3=self.deconvs.deconv_3(cat([d1,x3]))
+        d4=self.deconvs.deconv_4(cat([d1,x2]))
+        d5=self.deconvs.deconv_5(cat([d1,x1]))
+
+        d_1_out = self.output1(d1)
+        d_2_out = self.output1(d2)
+        d_3_out = self.output1(d3)
+        d_4_out = self.output1(d4)
+        d_5_out = self.output1(d5)
        
-        
-        return x
+        # Pose Part
+        p = self.pose_estmation(feature)
+        p = th.flatten(p,start_dim=1)
+        p = self.fc()
+
+        # Flow Part
+        f_1=self.deconvs.deconv_1(feature)
+        f_1_out = self.output1(f1)
+        f_2=self.deconvs.deconv_2(cat([d1,x4,f_1_out]))
+        f_2_out = self.output1(f2)
+        f_3=self.deconvs.deconv_3(cat([d1,x3,f_1_out]))
+        f_3_out = self.output1(f3)
+        f_4=self.deconvs.deconv_4(cat([d1,x2,f_1_out]))
+        f_4_out = self.output1(f4)
+        f_5=self.deconvs.deconv_5(cat([d1,x1,f_1_out]))
+        f_5_out = self.output1(f5)
+
+        return d_5_out,p,f_5_out
 
     def init_weights(self):
         # weights train from scratch
@@ -168,41 +191,3 @@ class Features(nn.Module):
                 nn.init.xavier_uniform(m.weight.data)
                 if m.bias is not None:
                     m.bias.data.zero_()
-
-
-
-
-class end2end(nn.Module):
-    def __init__(self,config):
-        super(end2end,self).__init__()
-        
-        self.iconv7 = make_layer(deconv_planes[0] + conv_planes[5], BasicBlock, deconv_planes[0], blocks=1, stride=1)
-        self.iconv6 = make_layer(deconv_planes[1] + conv_planes[4], BasicBlock, deconv_planes[1], blocks=1, stride=1)
-        self.iconv5 = make_layer(deconv_planes[2] + conv_planes[3], BasicBlock, deconv_planes[2], blocks=1, stride=1)
-        self.iconv4 = make_layer(deconv_planes[3] + conv_planes[2], BasicBlock, deconv_planes[3], blocks=1, stride=1)
-        self.iconv3 = make_layer(1 + deconv_planes[4] + conv_planes[1], BasicBlock, deconv_planes[4], blocks=1, stride=1)
-        self.iconv2 = make_layer(1 + deconv_planes[5] + conv_planes[0], BasicBlock, deconv_planes[5], blocks=1, stride=1)
-        self.iconv1 = make_layer(1 + deconv_planes[6], BasicBlock, deconv_planes[6], blocks=1, stride=1)
-
-        self.predict_disp6 = conv(deconv_planes[1],1)
-        self.predict_disp5 = conv(deconv_planes[2],1)
-        self.predict_disp4 = conv(deconv_planes[3],1)
-        self.predict_disp3 = conv(deconv_planes[4],1)
-        self.predict_disp2 = conv(deconv_planes[5],1)
-        self.predict_disp1 = conv(deconv_planes[6],1)
-
-    def forward(self,x):
-        x=features(x)
-        d=self.deconv1(x)
-        d=self.deconv2(x)
-        d=self.deconv3(x)
-        d=self.deconv4(x)
-
-        f=self.deconv1(x)
-        f=self.deconv2(f)
-        f=self.deconv3(f)
-        f=self.deconv4(f)
-
-
-        x = th.flatten(x,1)
-        p=self.fc(x)

@@ -6,62 +6,6 @@ from resnet import BasicBlock,Bottleneck,make_layer
 from collections import OrderedDict
 
 
-## ResNet
-# def conv3x3(in_planes, out_planes, stride=1):
-#     return nn.Sequential(
-#         nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False),
-#         nn.BatchNorm2d(planes),
-#         nn.ReLU(inplace=True)
-#     ) 
-
-
-
-
-# class BasicBlock(nn.Module):
-#     expansion = 1
-
-#     def __init__(self, inplanes, planes, stride=1, downsample=None):
-#         super(BasicBlock, self).__init__()
-#         self.conv1 = conv(inplanes, planes, stride)
-#         self.conv2 = conv(planes, planes, stride=1)
-#         self.downsample = downsample
-#         self.stride = stride
-
-#     def forward(self, x):
-#         residual = x
-
-#         out = self.conv1(x)
-#         out = self.conv2(out)
-
-#         if self.downsample is not None:
-#             residual = self.downsample(x)
-
-#         out += residual
-#         out = F.relu(out)
-#         return out
-
-
-# def make_layer(inplanes, block, planes, blocks, stride=1):
-#     downsample = None
-#     if stride != 1 or inplanes != planes * block.expansion:
-#         downsample = nn.Sequential(
-#             nn.Conv2d(inplanes, planes * block.expansion,
-#                       kernel_size=1, stride=stride, bias=False),
-#             nn.BatchNorm2d(planes * block.expansion),
-#         )
-
-#     layers = []
-#     layers.append(block(inplanes, planes, stride, downsample))
-#     inplanes = planes * block.expansion
-#     for i in range(1, blocks):
-#         layers.append(block(inplanes, planes))
-
-#     return nn.Sequential(*layers)
-
-## End of the Resblock
-
-
-
 ## main model
 
 def conv(in_planes, out_planes, k=3, stride=2, padding=1):

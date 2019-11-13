@@ -34,7 +34,7 @@ def cat(x):
 class PDF(nn.Module):
     def __init__(self, config):
 
-        super(Features, self).__ init__()
+        super(PDF, self).__init__()
         self.inplane=inplane
         self.inputs = nn.Conv2d(6, 3,kernel_size=7,stride=2,padding=3,bias=False)
 
@@ -121,21 +121,21 @@ class PDF(nn.Module):
 
         d = cat([d,x2])
         d = self.conv1x1_1(d)
-        d =self.deconvs.deconv_2(cat([d1,x4]))# 128->64
+        d =self.deconvs.deconv_2(cat([d,x4]))# 128->64
         d3 = self.output3(d)
 
         d = cat([d,x1])
         d = self.conv1x1_1(d)
-        d =self.deconvs.deconv_3(cat([d1,x3]))# 64->32
+        d =self.deconvs.deconv_3(cat([d,x3]))# 64->32
         d4 = self.output4(d)
 
         d = cat([d,x])
         d = self.conv1x1_1(d)
-        d =self.deconvs.deconv_4(cat([d1,x2]))# 32->16
+        d =self.deconvs.deconv_4(cat([d,x2]))# 32->16
         d5 = self.output5(d)      
        
         # Pose Part
-        p = self.pose_estmation(feature)
+        p = self.pose_estmation(x4)
         p = th.flatten(p,start_dim=1)
         p = self.fc(p)
 
@@ -154,20 +154,20 @@ class PDF(nn.Module):
 
         f = cat([f,x2])
         f = self.conv1x1_3(f)
-        f =self.deconvs.deconv_2(cat([d1,x4]))# 128->64
+        f =self.deconvs.deconv_2(cat([d,x4]))# 128->64
         f3 = self.output3(f)
 
         f = cat([f,x1])
         f = self.conv1x1_4(f)
-        f =self.deconvs.deconv_3(cat([d1,x3]))# 64->32
+        f =self.deconvs.deconv_3(cat([d,x3]))# 64->32
         f4 = self.output4(f)
 
         f = cat([f,x])
         f = self.conv1x1_5(f)
-        f =self.deconvs.deconv_4(cat([d1,x2]))# 32->16
+        f =self.deconvs.deconv_4(cat([d,x2]))# 32->16
         f5 = self.output5(f)
 
-        return d_5,p,f_5
+        return d5,p,f5
 
     def init_weights(self):
         # weights train from scratch

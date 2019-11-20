@@ -32,10 +32,11 @@ def cat(x):
 
 
 class PDF(nn.Module):
-    def __init__(self, config):
+    def __init__(self, mode='test'):
 
         super(PDF, self).__init__()
         self.inplane=inplane
+        self.mode=mode
         self.inputs = nn.Conv2d(6, 3,kernel_size=7,stride=2,padding=3,bias=False)
 
         conv_planes = [64, 64, 128, 256, 512]
@@ -167,7 +168,10 @@ class PDF(nn.Module):
         f =self.deconvs.deconv_4(cat([d,x2]))# 32->16
         f5 = self.output5(f)
 
-        return d5,p,f5
+        if self.mode == 'test'
+            return d5,p,f5
+        else:
+            return d5,d4,d3,d2,p,f5,f4,f3,f2
 
     def init_weights(self):
         # weights train from scratch

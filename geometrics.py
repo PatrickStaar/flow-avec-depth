@@ -254,6 +254,7 @@ def pose2flow(depth, pose, intrinsics, intrinsics_inv, rotation_mode='euler', pa
 
 # generate flow difference  mask
 def mask_gen(flow, rigid_flow):
+    
     dist=torch.abs(flow-rigid_flow,dim=-1) # [B,H,W,1]->[B,H,W]
     mask=torch.exp(-dist)
     return mask

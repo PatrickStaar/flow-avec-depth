@@ -8,6 +8,7 @@ from model import PDF
 from geometrics import inverse_warp, flow_warp, pose2flow, mask_gen
 from losses import *
 
+
 def get_time():
     T=time.strftime('%y.%m.%d-%H.%M.%S',time.localtime())
     return T.split('-')
@@ -85,33 +86,19 @@ for epoch in range(cfg.max_epoch):
 
         depth_maps, pose, flows=net([img1,img0])
 
-        losses=[]
+        # generate multi scale mask, including forward and backward masks        
+        masks = multi_scale_mask(
+            multi_scale=4, depth = depth_maps, pose= pose, flow=flows, 
+            intrinsics = intrinsics, intrinsics_inv = intrinsics_inv        
+        )
 
-        for j in range(len(depth_maps)):
-            # 尺寸问题待解决
-            img1_warped_d = inverse_warp(img0, ,pose,intrinsics,intrinsics_inv)
-            img0_warped_d = inverse_warp(img1, depth_maps[j][0],pose,intrinsics,intrinsics_inv)
-
-            img1_warped_f = flow_warp(img0, flows[j][1])
-            img0_warped_f = flow_warp(img1, flows[j][0])
-
-            # pose inv is needed
-
-            flow_rigid_foward = pose2flow(depth_maps[j][1], pose, intrinsics, intrinsics_inv)
-            flow_rigid_backward = pose2flow(depth_maps[j][0], pose_inv, intrinsics, intrinsics_inv)
-            
-            occulsion_mask0=mask_gen(flows[j][1],flow_rigid_foward)
-            occulsion_mask1=mask_gen(flows[j][0],flow_rigid_backward)
-
-            # 损失计算
-            losses.append(
-                loss_depth_consistency(depth_maps[j][1], depth_maps[0],
-                                    pose=pose,img_src=img0,img_tgt=img1,
-                                    intrinsics,intrinsics_inv)) # ATTENTION masks are missing 
-            losses.append(
-                loss_flow_consistency(flows[j][1],flows[j][0],img0, img1)
-            )
-
+        # 2 major losses
+        losses['depth_consistency'] = loss_depth_consistency(
+            depth_maps[1], depth_maps[0], pose=pose, img_src=img0, img_tgt=img1, multi_scale=4,
+            intrinsics=intrinsics, intrinsics_inv = intrinsics_inv, mask=masks
+        )
+        losses={}  
+        losses['flow_consistency'] = loss_flow_consistency(flows[1],flows[0],img0, img1,multi_scale=4)        
 
 
 

@@ -171,7 +171,7 @@ class PDF(nn.Module):
         if self.mode == 'test'
             return d5,p,f5
         else:
-            return d5,d4,d3,d2,p,f5,f4,f3,f2
+            return [d5,d4,d3,d2],p,[f5,f4,f3,f2]
 
     def init_weights(self):
         # weights train from scratch

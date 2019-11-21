@@ -98,7 +98,19 @@ for epoch in range(cfg.max_epoch):
             intrinsics=intrinsics, intrinsics_inv = intrinsics_inv, mask=masks
         )
         losses={}  
-        losses['flow_consistency'] = loss_flow_consistency(flows[1],flows[0],img0, img1,multi_scale=4)        
+        losses['flow_consistency'] = loss_flow_consistency(flows[1],flows[0],img0, img1,multi_scale=4)
+
+        total_loss = sum_up(losses, cfg.loss_weight)
+
+        opt.zero_grad()
+        total_loss.backward()
+        opt.step()
+
+        #calc time per step
+    
+    # calc average loss per epoch
+
+    
 
 
 

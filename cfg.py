@@ -35,7 +35,8 @@ max_epoch=10
 
 # losses
 
-
+loss_weight=[]
+multi_scale_weight=[]
 
 # post training
 

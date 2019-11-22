@@ -74,10 +74,10 @@ class PDF(nn.Module):
             conv(512,512,stride=1),
         )
 
-        self.output1=deconv(deconv_planes[2],1)
-        self.output2=deconv(deconv_planes[3],1)
-        self.output3=deconv(deconv_planes[4],1)
-        self.output4=deconv(deconv_planes[5],1)
+        self.output1=deconv(deconv_planes[2],2)
+        self.output2=deconv(deconv_planes[3],2)
+        self.output3=deconv(deconv_planes[4],2)
+        self.output4=deconv(deconv_planes[5],2)
         
         self.pose_estmation=nn.Sequential(
             conv(512, 512),
@@ -168,7 +168,7 @@ class PDF(nn.Module):
         f =self.deconvs.deconv_4(cat([d,x2]))# 32->16
         f5 = self.output5(f)
 
-        if self.mode == 'test'
+        if self.mode == 'test':
             return d5,p,f5
         else:
             return [d5,d4,d3,d2],p,[f5,f4,f3,f2]

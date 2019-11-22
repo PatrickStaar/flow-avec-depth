@@ -7,6 +7,7 @@ import time
 from model import PDF
 from geometrics import inverse_warp, flow_warp, pose2flow, mask_gen
 from losses import *
+from tensorboardX import SummaryWriter
 
 
 def get_time():
@@ -46,6 +47,10 @@ val_loader=DataLoader(valset,
 
 
 # 定义summary
+train_writer=SummaryWriter(cfg.save_pth)
+output_writer = []
+
+
 
 # 定义saver
 date=time.strftime('%y.%m.%d')
@@ -53,6 +58,7 @@ save_pth = cfg.save_pth
 
 # 定义模型
 net = PDF(mode='train')
+net.train()
 
 # 是否导入预训练
 if cfg.pretrain:
@@ -71,11 +77,13 @@ opt = torch.optim.Adam(weights, lr = cfg.lr)
 
 
 # 启动summary
-
+steps=0
 # 开始迭代
 for epoch in range(cfg.max_epoch):
 
+    tic=time.time()
     for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(trainset):
+        steps+=1
         # calc loading time
 
         # add Varibles
@@ -100,14 +108,21 @@ for epoch in range(cfg.max_epoch):
         losses={}  
         losses['flow_consistency'] = loss_flow_consistency(flows[1],flows[0],img0, img1,multi_scale=4)
 
-        total_loss = sum_up(losses, cfg.loss_weight)
+        total_loss = final_loss(losses)
+
+        # writer
+        if steps % cfg.steps == 0:
+            train_writer.add_scalar('depth_consistency_loss', losses['depth_consistency'].item(), steps) # summary 参数不可以是torch tensor
+            train_writer.add_scalar('flow_consistency_loss', losses['flow_consistency'].item(), steps)
+        
 
         opt.zero_grad()
         total_loss.backward()
         opt.step()
 
         #calc time per step
-    
+        interval = time.time()-tic
+        
     # calc average loss per epoch
 
     

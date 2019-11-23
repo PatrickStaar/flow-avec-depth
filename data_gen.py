@@ -44,6 +44,52 @@ def explore(folder_list, sequence_len):
         random.shuffle(sequence)
     return sequence
 
+# for TUM格式
+def explore_tum(folder_list, batch_size=1, fixed_intrinsics=True, max_interval=2, intrinsic_file=None):
+
+    samples = []
+    entire_set=[]
+
+    if fixed_intrinsics :
+        intrinsics=read_intrinsics(intrinsic_file) # needed to be done
+
+    for f in folder_list:
+        with open(f/'rgb.txt') as img_list:
+            for i in img_list:
+                if '#' in i:
+                    continue
+                i = i.rstrip('\n')
+                stamp, rgb = i.split(' ')
+                entire_set.append({
+                    'stamp':float(stamp),
+                    'img_src':rgb,
+                })
+
+    sample_len=len(entire_set)
+    
+    # selecting pairs
+    for i in range(len(entire_set)):
+        interval = np.random.randint(1, max_interval)
+
+        if i + interval > sample_len - 1:
+            t0 = i - interval
+            t1 = i
+        #  避免采样到两个不同场景下的样本
+        elif entire_set[i+interval]['stamp'] - entire_set[i]['stamp'] > 10.0:
+            t0 = i - interval
+            t1 = i
+        else:
+            t0 = i
+            t1 = i + interval
+
+        samples.append({
+            't0': entire_set[t0]['stamp'],
+            't1': entire_set[t1]['stamp'],
+            'img_t0': entire_set[t0]['stamp'],
+            'img_t1': entire_set[t1]['stamp'], 
+            'intrinsics':entire_set[t0]['intrinsics']
+        })
+
 
 def load_as_float(path):
     return imread(path).astype(np.float32)

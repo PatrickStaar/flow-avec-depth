@@ -21,6 +21,8 @@ t = Compose([
     Normalize(mean=cfg.mean,std=cfg.std)
 ])
 
+
+
 # 定义数据集
 trainset=data_generator(root='./datasets/kitti/train',
                           transform=t,
@@ -50,7 +52,14 @@ val_loader=DataLoader(valset,
 train_writer=SummaryWriter(cfg.save_pth)
 output_writer = []
 
+# 设置随机数种子
+SEED = 0
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
 
+# 设置GPU
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
 
 # 定义saver
 date=time.strftime('%y.%m.%d')
@@ -72,18 +81,19 @@ else:
 # 设置优化器
 weights = net.parameters()
 opt = torch.optim.Adam(weights, lr = cfg.lr)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
 
 # 设置gpu
 
 
 # 启动summary
-steps=0
+global_steps=0
+accumulated_loss=0
 # 开始迭代
 for epoch in range(cfg.max_epoch):
-
     tic=time.time()
-    for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(trainset):
-        steps+=1
+    for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(train_loader):
+        global_steps+=1
         # calc loading time
 
         # add Varibles
@@ -108,21 +118,34 @@ for epoch in range(cfg.max_epoch):
         losses={}  
         losses['flow_consistency'] = loss_flow_consistency(flows[1],flows[0],img0, img1,multi_scale=4)
 
-        total_loss = final_loss(losses)
-
-        # writer
-        if steps % cfg.steps == 0:
-            train_writer.add_scalar('depth_consistency_loss', losses['depth_consistency'].item(), steps) # summary 参数不可以是torch tensor
-            train_writer.add_scalar('flow_consistency_loss', losses['flow_consistency'].item(), steps)
-        
+        total_loss = final_loss(losses)     
 
         opt.zero_grad()
         total_loss.backward()
         opt.step()
+        scheduler.step(metrics=total_loss)
 
         #calc time per step
-        interval = time.time()-tic
-        
+    
+        accumulated_loss += total_loss.to('cpu').item()
+
+        if global_steps % cfg.steps == 0:
+            # 每 cfg.steps 批次打印一次
+            train_writer.add_scalar('depth_consistency_loss', losses['depth_consistency'].item(), global_steps) # summary 参数不可以是torch tensor
+            train_writer.add_scalar('flow_consistency_loss', losses['flow_consistency'].item(), global_steps)
+               
+            print('[%d, %5d] loss: %.6f elapse: %.4f'%(epoch + 1, i + 1, accumulated_loss / cfg.steps, interval))
+            accumulated_loss = 0.0
+    
+    # validate
+
+    # for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(val_loader):
+
+
+
+    interval = time.time()-tic
+    print('epoch {}: time elapse:{}'.format(epoch,interval))
+
     # calc average loss per epoch
 
     

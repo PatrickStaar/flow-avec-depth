@@ -13,9 +13,10 @@ class Compose(object):
         self.transforms = transforms
 
     def __call__(self, images, intrinsics):
+        img, ins = images, intrinsics
         for t in self.transforms:
-            images, intrinsics = t(images, intrinsics)
-        return images, intrinsics
+            img, ins = t(img, ins)
+        return img, ins
 
 
 class Normalize(object):
@@ -54,8 +55,9 @@ class ArrayToTensor(object):
             im = np.transpose(im, (2, 0, 1))
             # handle numpy array
             tensors.append(torch.from_numpy(im).float()/255)
+        
             
-        return tensors, intrinsics
+        return tensors, torch.from_numpy(intrinsics)
 
 
 class RandomHorizontalFlip(object):

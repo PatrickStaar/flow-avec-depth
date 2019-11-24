@@ -4,22 +4,22 @@ import numpy as np
 
 
 # dataset
-dataset_root=Path('./datasets')
+dataset_root=Path('./dataset')
 dataset='tum'
 dataset_path=dataset_root/dataset
 split_ratio=0.6
-batch_size=16
-sequence_len=500
+batch_size=1
+sequence_len=20
 
 # image
 # unsure
-image_means=[0.5,0.5,0.5]
+mean=[0.5,0.5,0.5]
 std = [0.5,0.5,0.5]
 image_size=[]
 
 
 # intrinsics
-fixed_intrinsics=''
+fixed_intrinsics=dataset_path/'cam.txt'
 
 # model
 pretrain=False
@@ -29,12 +29,13 @@ pretrained_weights=''
 
 # optimizer
 max_epoch=10
-
+lr = 0.01
 
 # losses
-loss_weight=[]
-multi_scale_weight=[]
-
+loss_weight=[1,1]
+multi_scale_weight=[1.,0.5,0.1,0.01]
+reconstruction_weights=[1,0.5,0.1]
 # post training
 
 save_pth=Path('./checkpoints')
+log=Path('./log')

@@ -1,3 +1,4 @@
+import torch
 import torch.utils.data as data
 import numpy as np
 from scipy.misc import imread
@@ -31,35 +32,36 @@ def explore(folder_list, sequence_len = 0, max_interval=3):
 
 
 # for TUM格式
-def explore_tum(folder_list, fixed_intrinsics=True, max_interval=2):
+def explore_tum(folder_list, fixed_intrinsics=True, max_interval=2, shuffle=True):
 
     sequences = []
 
     if fixed_intrinsics :
-        intrinsics=np.genfromtxt(cfg.fixed_intrinsics, delimiter=',').astype(np.float32).reshape((3, 3)) 
+        intrinsics=np.genfromtxt(cfg.fixed_intrinsics, delimiter=' ').astype(np.float32).reshape((3, 3)) 
     
     for f in folder_list:
         if not fixed_intrinsics:
-            intrinsics=np.genfromtxt(f/'cam.txt', delimiter=',').astype(np.float32).reshape((3, 3)) 
+            intrinsics=np.genfromtxt(f/'cam.txt', delimiter=' ').astype(np.float32).reshape((3, 3)) 
         
-        with open(f/'rgb.txt') as imgs:
-            for i in range(1, len(imgs)):
-                if '#' in i:
-                    continue
+        with open(f/'rgb.txt') as filelist:
+            imgs = [l.rstrip('\n') for l in filelist.readlines()]
 
-                d = random.randint(1,max_interval)
-                if i-d < 0:
-                    d=1
+        for i in range(1,len(imgs)):
+            
+            d = random.randint(1,max_interval)
+            if i-d < 0:
+                d=1
 
-                _, img_t1 = imgs[i].rstrip('\n').split(' ')
-                _, img_t0 = imgs[i-d].rstrip('\n').split(' ')
+            _, img_t1 = imgs[i].split(' ')
+            _, img_t0 = imgs[i-d].split(' ')
 
-                sequences.append({
-                    'intrinsics':intrinsics,
-                    'img_t0':f/img_t0,
-                    'img_t1':f/img_t1
-                })
-        random.shuffle(sequences)
+            sequences.append({
+                'intrinsics':intrinsics,
+                'img_t0':f/img_t0,
+                'img_t1':f/img_t1
+            })
+        if shuffle:
+            random.shuffle(sequences)
     return sequences
 
 
@@ -69,7 +71,7 @@ def load_as_float(path):
 
 class data_generator(data.Dataset):
 
-    def __init__(self, root, seed=None, train=True, sequence_length=3, transform=None, target_transform=None, format=''):
+    def __init__(self, root, seed=None, train=True, sequence_length=3, transform=None, target_transform=None, format='', shuffle=True):
         np.random.seed(seed)
         random.seed(seed)
         self.root = Path(root)
@@ -77,23 +79,22 @@ class data_generator(data.Dataset):
         scene_list_path = self.root/'train.txt' if train else self.root/'val.txt'
         self.scenes = [self.root/folder[:-1] for folder in open(scene_list_path)]
         if format == 'tum':
-            self.samples = explore_tum(self.scenes)
-
-        self.samples = explore(self.scenes, sequence_length)
+            self.samples = explore_tum(self.scenes, shuffle)
+        else:
+            self.samples = explore(self.scenes, sequence_length)
         self.transform = transform
 
     def __getitem__(self, index):
         sample = self.samples[index]
-        img0 = load_as_float(sample['img_t1'])
-        img1 = load_as_float(sample['img_t0'])
+        img1 = load_as_float(sample['img_t1'])
+        img0 = load_as_float(sample['img_t0'])
         
-        if self.transform is not None:
-            imgs, intrinsics = self.transform([img0, img1], np.copy(sample['intrinsics']))
-            img0 = imgs[0]
-            img1 = imgs[1]
-        else:
-            intrinsics = np.copy(sample['intrinsics'])
-        return img1, img0, intrinsics, np.linalg.inv(intrinsics)
+        imgs, intrinsics = self.transform([img0, img1], np.copy(sample['intrinsics']))
+        img0 = imgs[0]
+        img1 = imgs[1]
+        
+            
+        return img1, img0, intrinsics, intrinsics.inverse()
 
     def __len__(self):
         return len(self.samples)

@@ -1,27 +1,10 @@
 import torch.utils.data as data
 import numpy as np
 from scipy.misc import imread
-from pathlib import Path
+from path import Path
 import random
 import cfg
 
-
-def crawl_folders(folders_list, sequence_length):
-        sequence_set = []
-        demi_length = (sequence_length-1)//2
-        for folder in folders_list:
-            intrinsics = np.genfromtxt(folder/'cam.txt', delimiter=',').astype(np.float32).reshape((3, 3))
-            imgs = sorted(folder.files('*.jpg'))
-            if len(imgs) < sequence_length:
-                continue
-            for i in range(demi_length, len(imgs)-demi_length):
-                sample = {'intrinsics': intrinsics, 'tgt': imgs[i], 'ref_imgs': []}
-                for j in range(-demi_length, demi_length + 1):
-                    if j != 0:
-                        sample['ref_imgs'].append(imgs[i+j])
-                sequence_set.append(sample)
-        random.shuffle(sequence_set)
-        return sequence_set
 
 
 def explore(folder_list, sequence_len = 0, max_interval=3):
@@ -73,8 +56,8 @@ def explore_tum(folder_list, fixed_intrinsics=True, max_interval=2):
 
                 sequences.append({
                     'intrinsics':intrinsics,
-                    'img_t0':img_t0,
-                    'img_t1':img_t1
+                    'img_t0':f/img_t0,
+                    'img_t1':f/img_t1
                 })
         random.shuffle(sequences)
     return sequences
@@ -101,13 +84,13 @@ class data_generator(data.Dataset):
 
     def __getitem__(self, index):
         sample = self.samples[index]
-        img1 = load_as_float(sample['img_t1'])
-        img0 = load_as_float(sample['img_t0'])
+        img0 = load_as_float(sample['img_t1'])
+        img1 = load_as_float(sample['img_t0'])
         
         if self.transform is not None:
-            imgs, intrinsics = self.transform([img1, img0], np.copy(sample['intrinsics']))
-            img1 = imgs[0]
-            img0 = imgs[1:]
+            imgs, intrinsics = self.transform([img0, img1], np.copy(sample['intrinsics']))
+            img0 = imgs[0]
+            img1 = imgs[1]
         else:
             intrinsics = np.copy(sample['intrinsics'])
         return img1, img0, intrinsics, np.linalg.inv(intrinsics)

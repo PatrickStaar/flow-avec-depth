@@ -1,19 +1,18 @@
-from pathlib import Path
+from path import Path
 import numpy as np
 
 
 
 # dataset
 dataset_root=Path('./datasets')
-
-
-dataset='kitti'
+dataset='tum'
 dataset_path=dataset_root/dataset
 split_ratio=0.6
 batch_size=16
-sequence_len=2
+sequence_len=500
 
 # image
+# unsure
 image_means=[0.5,0.5,0.5]
 std = [0.5,0.5,0.5]
 image_size=[]
@@ -32,9 +31,7 @@ pretrained_weights=''
 max_epoch=10
 
 
-
 # losses
-
 loss_weight=[]
 multi_scale_weight=[]
 

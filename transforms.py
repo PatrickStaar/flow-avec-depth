@@ -54,6 +54,7 @@ class ArrayToTensor(object):
             im = np.transpose(im, (2, 0, 1))
             # handle numpy array
             tensors.append(torch.from_numpy(im).float()/255)
+            
         return tensors, intrinsics
 
 
@@ -82,7 +83,7 @@ class RandomRotate(object):
             assert intrinsics is not None
             rot = np.random.uniform(0,10)
             rotated_images = [imrotate(im, rot) for im in images]
-
+            
             return rotated_images, intrinsics
 
 

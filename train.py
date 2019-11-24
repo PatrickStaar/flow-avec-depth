@@ -24,15 +24,17 @@ t = Compose([
 
 
 # 定义数据集
-trainset=data_generator(root='./datasets/kitti/train',
+trainset=data_generator(root=cfg.dataset_path,
                           transform=t,
-                          sequence_length=cfg.sequence_len
+                          sequence_length=cfg.sequence_len,
+                          format=cfg.dataset
 )
 
-valset=data_generator(root='./datasets/kitti/val',
+valset=data_generator(root=cfg.dataset_path,
                         transform=t,
                         train=False,
-                        sequence_length=cfg.sequence_len
+                        sequence_length=cfg.sequence_len,
+                        format=cfg.dataset
 )
 
 # 定义生成器

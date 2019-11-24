@@ -1,4 +1,4 @@
-from path import Path
+from pathlib import Path
 import numpy as np
 
 
@@ -20,7 +20,7 @@ image_size=[]
 
 
 # intrinsics
-
+fixed_intrinsics=''
 
 # model
 pretrain=False

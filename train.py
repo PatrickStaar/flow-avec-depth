@@ -100,6 +100,7 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
 # 启动summary
 global_steps=0
 accumulated_loss=0
+losses={}  
 # 开始迭代
 for epoch in range(cfg.max_epoch):
     tic=time.time()
@@ -115,23 +116,31 @@ for epoch in range(cfg.max_epoch):
         intrinsics_inv=Variable(intrinsics_inv.cuda())
 
         depth_maps, pose, flows=net([img1,img0])
-        
+
+        depth_t0_multi_scale = [d[:,0] for d in depth_maps]
+        depth_t1_multi_scale = [d[:,1] for d in depth_maps]
+
+        flow_t0_multi_scale = [f[:,:2] for f in flows]
+        flow_t1_multi_scale = [f[:,2:] for f in flows]
+
+
 
         # generate multi scale mask, including forward and backward masks        
         masks = multi_scale_mask(
-            multi_scale=4, depth = depth_maps, pose= pose, flow=flows, 
+            multi_scale=4, depth = (depth_t0_multi_scale, depth_t1_multi_scale),
+            pose= pose, flow=(flow_t0_multi_scale, flow_t1_multi_scale), 
             intrinsics = intrinsics, intrinsics_inv = intrinsics_inv        
         )
 
         # 2 major losses
         losses['depth_consistency'] = loss_depth_consistency(
-            depth_maps[1], depth_maps[0], pose=pose, img_src=img0, img_tgt=img1, multi_scale=4,
+            depth_t0_multi_scale, depth_t1_multi_scale, pose=pose, img_src=img0, img_tgt=img1, multi_scale=4,
             intrinsics=intrinsics, intrinsics_inv = intrinsics_inv, mask=masks
         )
-        losses={}  
-        losses['flow_consistency'] = loss_flow_consistency(flows[1],flows[0],img0, img1,multi_scale=4)
+        
+        losses['flow_consistency'] = loss_flow_consistency(flow_t0_multi_scale,flow_t1_multi_scale,img0, img1,multi_scale=4)
 
-        total_loss = final_loss(losses)     
+        total_loss = loss_sum(losses)     
 
         opt.zero_grad()
         total_loss.backward()

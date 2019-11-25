@@ -11,8 +11,8 @@ reconstruction_weights=cfg.reconstruction_weights
 
 
 # image reconstruction loss
-def l1_norm(x):
-    x=x.sqrt(x.pow(2)).mean() # +eps
+def l2_norm(x):
+    x=x.norm(dim=1)
     return x.mean()
 
 def loss_reconstruction(img_warped, img_tgt, mask=None):
@@ -26,14 +26,16 @@ def loss_reconstruction(img_warped, img_tgt, mask=None):
     img_warped = img_warped*valid_mask
     img_tgt = img_tgt*valid_mask
 
-    valid_loss = 1 - torch.sum(valid_mask,dim=0)/valid_mask.nelement()
-    dist = (img_warped-img_tgt)
-    ssim_loss=(1-ssim(img_warped, img_tgt))
+    valid_loss = 1 - valid_mask.sum()/valid_mask.nelement()
 
-    loss = l1_norm(dist)*reconstruction_weights[0]+\
-            ssim_loss*reconstruction_weights[1]+\
+    ssim_loss=(1-ssim(img_warped, img_tgt))#
+
+    l2_loss = l2_norm(img_warped-img_tgt)
+
+    loss = l2_loss*reconstruction_weights[0]+\
+        ssim_loss*reconstruction_weights[1]+\
         valid_loss*reconstruction_weights[2]
-
+    return loss
 
 # edge-aware smoothness loss
 
@@ -51,22 +53,24 @@ def loss_flow(gt, pred):
     u_pred = pred[:,0,:,:] * (w_gt/w_pred)
     v_pred = pred[:,1,:,:] * (h_gt/h_pred)
 
-    dist = l1_norm(u_gt - u_pred) + l1_norm(v_gt - v_pred)
+    dist = l2_norm(u_gt - u_pred) + l2_norm(v_gt - v_pred)
     return dist
 
 
 # multi_scale masks
 def multi_scale_mask(multi_scale, depth, pose, flow, intrinsics, intrinsics_inv):
-    masks_multi = []
-    for s in range(multi_scale):
+    masks = []
+    d_t0, d_t1 = depth
+    f_forward, f_backward = flow
 
-        flow_rigid_foward = pose2flow(depth[s][:,0], pose, intrinsics, intrinsics_inv)
-        flow_rigid_backward = pose2flow(depth[s][:,1], -pose, intrinsics, intrinsics_inv)
+    for s in range(multi_scale):
+        flow_rigid_foward = pose2flow(d_t0[s], pose, intrinsics, intrinsics_inv)
+        flow_rigid_backward = pose2flow(d_t1[s], -pose, intrinsics, intrinsics_inv)
         # 每个flow有x,y两个通道，所以模型输出的flow通道数需要改成4
-        mask0=mask_gen(flow[s][:,0],flow_rigid_foward)
-        mask1=mask_gen(flow[s][:,1],flow_rigid_backward) 
-        masks_multi.append((mask0, mask1))
-    return masks_multi
+        mask0=mask_gen(f_forward[s],flow_rigid_foward)
+        mask1=mask_gen(f_backward[s],flow_rigid_backward) 
+        masks.append((mask0, mask1))
+    return masks
 
 
 # forward-backward consistency loss
@@ -75,12 +79,12 @@ def loss_flow_consistency(forward, backward, img_src, img_tgt, multi_scale=0):
     losses=[]
     if multi_scale > 0:
         for s in range(multi_scale):
-            B,_,H,W = forward.size()
+            B,_,H,W = forward[s].size()
             img_src_s=torch.nn.functional.adaptive_avg_pool2d(img_src,(H, W))
             img_tgt_s=torch.nn.functional.adaptive_avg_pool2d(img_tgt,(H, W))
 
-            forward_warped=flow_warp(img_src_s,forward)
-            backward_warped=flow_warp(img_tgt_s,backward)
+            forward_warped=flow_warp(img_src_s,forward[s])
+            backward_warped=flow_warp(img_tgt_s,backward[s])
             losses.append(loss_reconstruction(img_tgt_s,forward_warped)+\
                 loss_reconstruction(img_src_s, backward_warped))
 
@@ -97,10 +101,11 @@ def loss_flow_consistency(forward, backward, img_src, img_tgt, multi_scale=0):
 def loss_depth_consistency(depth_t0, depth_t1, pose, img_src, img_tgt, intrinsics,intrinsics_inv, mask=None, multi_scale=0):
     losses=[]
     weights=[]
+    
     if multi_scale > 0:
         origine=img_src.size()[-1]
         for s in range(multi_scale):
-            _,_,H,W = depth_t0[s].size()
+            _,H,W = depth_t0[s].size()
             ratio=origine/W
 
             img_src_s=torch.nn.functional.adaptive_avg_pool2d(img_src,(H, W))
@@ -110,10 +115,10 @@ def loss_depth_consistency(depth_t0, depth_t1, pose, img_src, img_tgt, intrinsic
             intrinsics_inv_s=torch.cat((intrinsics_inv[:, 0:2]/ratio, intrinsics[:, 2:]), dim=1)
             
             forward_warped=inverse_warp(img_src_s, depth_t0[s], pose, intrinsics_s, intrinsics_inv_s)
-            backward_warped=inverse_warp(img_tgt_s, depth_t1[s], pose.inverse(), intrinsics_s, intrinsics_inv_s)
+            backward_warped=inverse_warp(img_tgt_s, depth_t1[s], -pose, intrinsics_s, intrinsics_inv_s)
             
-            l = loss_reconstruction(img_tgt_s,forward_warped,mask[:,0])+\
-                loss_reconstruction(img_src_s, backward_warped,mask[:,1])
+            l = loss_reconstruction(img_tgt_s,forward_warped,mask[s][0])+\
+                loss_reconstruction(img_src_s, backward_warped,mask[s][1])
             
             losses.append(l)
     
@@ -123,12 +128,13 @@ def loss_depth_consistency(depth_t0, depth_t1, pose, img_src, img_tgt, intrinsic
         l = loss_reconstruction(img_tgt_s,forward_warped,mask)+loss_reconstruction(img_src_s, backward_warped,mask)
         losses.append(l)
     loss = 0
+    
     for i in range(len(losses)):
         loss+=losses[i]*multi_scale_weights[i]
 
     return loss
 
-def final_loss(loss_dict):
+def loss_sum(loss_dict):
     alpha=cfg.loss_weight
     loss=0
     for key in loss_dict.keys():

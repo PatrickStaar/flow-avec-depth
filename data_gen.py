@@ -7,7 +7,6 @@ import random
 import cfg
 
 
-
 def explore(folder_list, sequence_len = 0, max_interval=3):
     sequences=[]
     for f in folder_list:

@@ -8,7 +8,7 @@ dataset_root=Path('./dataset')
 dataset='tum'
 dataset_path=dataset_root/dataset
 split_ratio=0.6
-batch_size=1
+batch_size=4
 sequence_len=20
 
 # image
@@ -30,9 +30,13 @@ pretrained_weights=''
 # optimizer
 max_epoch=10
 lr = 0.01
+steps=1
 
 # losses
-loss_weight=[1,1]
+loss_weight={
+    'depth_consistency':1.,
+    'flow_consistency':1.,
+}
 multi_scale_weight=[1.,0.5,0.1,0.01]
 reconstruction_weights=[1,0.5,0.1]
 # post training

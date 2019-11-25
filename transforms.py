@@ -4,6 +4,7 @@ import random
 import numpy as np
 from scipy.misc import imresize, imrotate
 
+
 '''Set of tranform random routines that takes list of inputs as arguments,
 in order to have random but coherent transformations.'''
 

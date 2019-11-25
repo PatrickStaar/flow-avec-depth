@@ -1,3 +1,4 @@
+
 import cfg
 from data_gen import data_generator
 from transforms import * 
@@ -142,6 +143,7 @@ for epoch in range(cfg.max_epoch):
 
         total_loss = loss_sum(losses)     
 
+        print('loss calced, now backwards')
         opt.zero_grad()
         total_loss.backward()
         opt.step()
@@ -156,7 +158,7 @@ for epoch in range(cfg.max_epoch):
             train_writer.add_scalar('depth_consistency_loss', losses['depth_consistency'].item(), global_steps) # summary 参数不可以是torch tensor
             train_writer.add_scalar('flow_consistency_loss', losses['flow_consistency'].item(), global_steps)
                
-            print('[%d, %5d] loss: %.6f elapse: %.4f'%(epoch + 1, i + 1, accumulated_loss / cfg.steps, interval))
+            print('[epoch %d,  %5d iter] loss: %.6f '%(epoch + 1, i + 1, accumulated_loss / cfg.steps, ))
             accumulated_loss = 0.0
     
     # validate

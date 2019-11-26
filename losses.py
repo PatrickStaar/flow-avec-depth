@@ -66,7 +66,7 @@ def multi_scale_mask(multi_scale, depth, pose, flow, intrinsics, intrinsics_inv)
     for s in range(multi_scale):
         flow_rigid_foward = pose2flow(d_t0[s], pose, intrinsics, intrinsics_inv)
         flow_rigid_backward = pose2flow(d_t1[s], -pose, intrinsics, intrinsics_inv)
-        # 每个flow有x,y两个通道，所以模型输出的flow通道数需要改成4
+        
         mask0=mask_gen(f_forward[s],flow_rigid_foward)
         mask1=mask_gen(f_backward[s],flow_rigid_backward) 
         masks.append((mask0, mask1))

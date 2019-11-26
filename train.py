@@ -100,11 +100,13 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
 
 # 启动summary
 global_steps=0
-accumulated_loss=0
+
 losses={}  
 # 开始迭代
 for epoch in range(cfg.max_epoch):
     tic=time.time()
+    iters=0
+    accumulated_loss=0
     for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(train_loader):
         print(i)
         global_steps+=1
@@ -152,13 +154,14 @@ for epoch in range(cfg.max_epoch):
         #calc time per step
     
         accumulated_loss += total_loss.to('cpu').item()
+        iters+=1
 
         if global_steps % cfg.steps == 0:
             # 每 cfg.steps 批次打印一次
             train_writer.add_scalar('depth_consistency_loss', losses['depth_consistency'].item(), global_steps) # summary 参数不可以是torch tensor
             train_writer.add_scalar('flow_consistency_loss', losses['flow_consistency'].item(), global_steps)
                
-            print('[epoch %d,  %5d iter] loss: %.6f '%(epoch + 1, i + 1, accumulated_loss / cfg.steps, ))
+            print('[epoch %d,  %5d iter] total loss: %.6f '%(epoch + 1, i + 1, total_loss.to('cpu'), ))
             accumulated_loss = 0.0
     
     # validate
@@ -168,7 +171,21 @@ for epoch in range(cfg.max_epoch):
 
 
     interval = time.time()-tic
-    print('epoch {}: time elapse:{}'.format(epoch,interval))
+    avg_loss=accumulated_loss/iters
+
+    print('epoch {}: time elapse:{} average_loss:{} '.format(epoch,interval,avg_loss))
+    
+    if epoch == 0:
+        min_loss = avg_loss
+        continue
+    
+    if avg_loss < min_loss:
+        min_loss = avg_loss
+        
+
+            
+    
+
 
     # calc average loss per epoch
 

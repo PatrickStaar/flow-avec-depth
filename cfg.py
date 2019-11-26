@@ -8,7 +8,7 @@ dataset_root=Path('./dataset')
 dataset='tum'
 dataset_path=dataset_root/dataset
 split_ratio=0.6
-batch_size=4
+batch_size=1
 sequence_len=20
 
 # image

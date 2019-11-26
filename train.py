@@ -181,7 +181,8 @@ for epoch in range(cfg.max_epoch):
     
     if avg_loss < min_loss:
         min_loss = avg_loss
-        
+        filename='{}_epoch_{}.pt'.format(get_time(),epoch)
+        torch.save(net.state_dict(),f=save_pth/filename)
 
             
     

@@ -1,6 +1,9 @@
 /.idea
 /.vscode
-/dataset
-/log
+/dataset/*
+/log/*
 /__pycache__
-
+/checkpoints/*
+*.zip
+/*.img
+/*.tar

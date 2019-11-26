@@ -8,7 +8,7 @@ dataset_root=Path('./dataset')
 dataset='tum'
 dataset_path=dataset_root/dataset
 split_ratio=0.6
-batch_size=1
+batch_size=4
 sequence_len=20
 
 # image
@@ -16,7 +16,6 @@ sequence_len=20
 mean=[0.5,0.5,0.5]
 std = [0.5,0.5,0.5]
 image_size=[]
-
 
 # intrinsics
 fixed_intrinsics=dataset_path/'cam.txt'
@@ -30,11 +29,11 @@ pretrained_weights=''
 # optimizer
 max_epoch=10
 lr = 0.01
-steps=1
+steps=10
 
 # losses
 loss_weight={
-    'depth_consistency':1.,
+    'depth_consistency':0.,
     'flow_consistency':1.,
     'depth_supervise':1,
     'flow_supervise':1,

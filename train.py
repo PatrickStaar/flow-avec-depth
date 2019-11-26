@@ -15,13 +15,10 @@ def get_time():
     T=time.strftime('%y.%m.%d-%H.%M.%S',time.localtime())
     return T.split('-')
 
-
 # 数据预处理
 t = Compose([
-    
     ArrayToTensor(),
     Normalize(mean=cfg.mean,std=cfg.std),
-    
 ])
 
 print('composed transform')
@@ -34,49 +31,51 @@ trainset=data_generator(root=cfg.dataset_path,
                           shuffle=False
 )
 
-# valset=data_generator(root=cfg.dataset_path,
-#                         transform=t,
-#                         train=False,
-#                         sequence_length=cfg.sequence_len,
-#                         format=cfg.dataset
-# )
-print('defined dataset')
-
 # 定义生成器
 train_loader=DataLoader(trainset,
                         batch_size=cfg.batch_size,
                         shuffle=True,
                         pin_memory=True, #锁页内存
 )
+
+# valset=data_generator(root=cfg.dataset_path,
+#                         transform=t,
+#                         train=False,
+#                         sequence_length=cfg.sequence_len,
+#                         format=cfg.dataset
+# )
+
 # val_loader=DataLoader(valset,
 #                         batch_size=cfg.batch_size,
 #                         shuffle=True,
 #                         pin_memory=True
 # )
 
-print('defined loader')
+print('defined data_loader')
 # 定义summary
 train_writer=SummaryWriter(cfg.log)
 output_writer = []
 
 # 设置随机数种子
-SEED = 0
-torch.manual_seed(SEED)
-torch.cuda.manual_seed(SEED)
-
+SEED = time.time()
 
 # 设置GPU
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(device)
+if torch.cuda.is_available():
+    device = torch.device('cuda:0')
+    torch.cuda.manual_seed(SEED)
+else:
+    device = torch.device('cpu')
+    torch.manual_seed(SEED)
+
+print('Torch Device:',device)
 
 # 定义saver
 date=time.strftime('%y.%m.%d')
 save_pth = cfg.save_pth
-
-
 print('load model')
+
 # 定义模型
-net = PDF(mode='train')
+net = PDF()
 net.to(device)
 print('set to train mode')
 net.train()
@@ -94,9 +93,6 @@ else:
 weights = net.parameters()
 opt = torch.optim.Adam(weights, lr = cfg.lr)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
-
-# 设置gpu
-
 
 # 启动summary
 global_steps=0
@@ -126,8 +122,6 @@ for epoch in range(cfg.max_epoch):
         flow_t0_multi_scale = [f[:,:2] for f in flows]
         flow_t1_multi_scale = [f[:,2:] for f in flows]
 
-
-
         # generate multi scale mask, including forward and backward masks        
         masks = multi_scale_mask(
             multi_scale=4, depth = (depth_t0_multi_scale, depth_t1_multi_scale),
@@ -137,11 +131,13 @@ for epoch in range(cfg.max_epoch):
 
         # 2 major losses
         losses['depth_consistency'] = loss_depth_consistency(
-            depth_t0_multi_scale, depth_t1_multi_scale, pose=pose, img_src=img0, img_tgt=img1, multi_scale=4,
-            intrinsics=intrinsics, intrinsics_inv = intrinsics_inv, mask=masks
+            depth_t0_multi_scale, depth_t1_multi_scale, pose=pose, img_src=img0, img_tgt=img1,
+            multi_scale=4,intrinsics=intrinsics, intrinsics_inv = intrinsics_inv, mask=masks
         )
         
-        losses['flow_consistency'] = loss_flow_consistency(flow_t0_multi_scale,flow_t1_multi_scale,img0, img1,multi_scale=4)
+        losses['flow_consistency'] = loss_flow_consistency(
+            flow_t0_multi_scale,flow_t1_multi_scale,img0, img1,multi_scale=4
+        )
 
         total_loss = loss_sum(losses)     
 
@@ -158,8 +154,12 @@ for epoch in range(cfg.max_epoch):
 
         if global_steps % cfg.steps == 0:
             # 每 cfg.steps 批次打印一次
-            train_writer.add_scalar('depth_consistency_loss', losses['depth_consistency'].item(), global_steps) # summary 参数不可以是torch tensor
-            train_writer.add_scalar('flow_consistency_loss', losses['flow_consistency'].item(), global_steps)
+            train_writer.add_scalar(
+                'depth_consistency_loss', losses['depth_consistency'].item(), global_steps
+            ) # summary 参数不可以是torch tensor
+            train_writer.add_scalar(
+                'flow_consistency_loss', losses['flow_consistency'].item(), global_steps
+            )
                
             print('[epoch %d,  %5d iter] total loss: %.6f '%(epoch + 1, i + 1, total_loss.to('cpu'), ))
             accumulated_loss = 0.0
@@ -169,11 +169,11 @@ for epoch in range(cfg.max_epoch):
     # for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(val_loader):
 
 
-
+    # calc average loss per epoch
     interval = time.time()-tic
     avg_loss=accumulated_loss/iters
 
-    print('epoch {}: time elapse:{} average_loss:{} '.format(epoch,interval,avg_loss))
+    print('**** Epoch {}: Time Elapse:{} Average Loss:{} ****'.format(epoch,interval,avg_loss))
     
     if epoch == 0:
         min_loss = avg_loss
@@ -184,11 +184,8 @@ for epoch in range(cfg.max_epoch):
         filename='{}_epoch_{}.pt'.format(get_time(),epoch)
         torch.save(net.state_dict(),f=save_pth/filename)
 
-            
-    
 
-
-    # calc average loss per epoch
+   
 
     
 

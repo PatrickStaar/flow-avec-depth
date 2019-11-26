@@ -39,11 +39,10 @@ def cat(x):
 
 
 class PDF(nn.Module):
-    def __init__(self, mode='test', groups=1):
+    def __init__(self):
 
         super(PDF, self).__init__()
-
-        self.mode = mode
+        
         self.inputs = nn.Conv2d(6, 3, kernel_size=7,
                                 stride=2, padding=3, bias=False)
 
@@ -53,7 +52,7 @@ class PDF(nn.Module):
         flow_output_channels = [0, 0, 4, 4, 4, 4]
         block_num = [3, 4, 6, 3]
         self.dilation = 1
-        self.groups = groups
+        self.groups = 1
         self.base_width = 64
 
         self.conv1 = conv(3, 32, k=7, stride=2, padding=3)
@@ -182,10 +181,10 @@ class PDF(nn.Module):
         f = self.deconv_flow.layer_5(cat([f, f4]))  # 32->16
         f5 = self.output5_flow(f)
 
-        if self.mode == 'test':
-            return d5, p, f5
-        else:
+        if self.training:
             return [d5, d4, d3, d2], p, [f5, f4, f3, f2]
+        else:
+            return [d5,],p,[f5,]
 
     def init_weights(self):
         # weights train from scratch

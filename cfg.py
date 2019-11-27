@@ -8,7 +8,7 @@ dataset_root=Path('./dataset')
 dataset='tum'
 dataset_path=dataset_root/dataset
 split_ratio=0.6
-batch_size=3
+batch_size=2
 sequence_len=20
 
 # image
@@ -25,11 +25,10 @@ pretrain=False
 from_checkpoint=False
 pretrained_weights=''
 
-
 # optimizer
-max_epoch=10
+max_epoch=100
 lr = 0.01
-steps=10
+steps=100
 
 # losses
 loss_weight={
@@ -40,6 +39,7 @@ loss_weight={
     'pose_supervise':0,
     'smoothness':0.5,
 }
+
 multi_scale_weight=[1.,0.5,0.1,0.01]
 reconstruction_weights=[1,0.5,0.1]
 # post training
@@ -49,5 +49,6 @@ log=Path('./log')
 
 # test
 
-weight_for_test = save_pth
+
 test_tmp = Path('./tmp')
+weight_for_test = save_pth/'11.27.14.12.10_epoch_2.pt'

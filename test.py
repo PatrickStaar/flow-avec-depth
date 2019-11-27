@@ -1,7 +1,7 @@
 
 import cfg
 from data_gen import data_generator
-from transforms import * 
+from transforms import *
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 import time
@@ -13,30 +13,35 @@ import cv2
 
 
 def get_time():
-    T=time.strftime('%y.%m.%d-%H.%M.%S',time.localtime())
+    T = time.strftime('%y.%m.%d-%H.%M.%S', time.localtime())
     return T.split('-')
+
 
 # 数据预处理
 t = Compose([
     ArrayToTensor(),
-    Normalize(mean=cfg.mean,std=cfg.std),
+    Normalize(mean=cfg.mean, std=cfg.std),
 ])
 
 print('composed transform')
 
 # 定义数据集
-testset=data_generator(root=cfg.dataset_path,
-                          transform=t,
-                          sequence_length=cfg.sequence_len,
-                          format=cfg.dataset,
-                          shuffle=False
+testset = data_generator(
+    root=cfg.dataset_path,
+    transform=t,
+    sequence_length=cfg.sequence_len,
+    format=cfg.dataset,
+    shuffle=False,
+    train=False
+
 )
 
 # 定义生成器
-test_loader=DataLoader(testset,
-                        batch_size=cfg.batch_size,
-                        shuffle=True,
-                        pin_memory=True, #锁页内存
+test_loader = DataLoader(
+    testset,
+    batch_size=1,
+    shuffle=True,
+    pin_memory=True,  # 锁页内存
 )
 
 
@@ -56,15 +61,15 @@ else:
     device = torch.device('cpu')
     torch.manual_seed(SEED)
 
-print('Torch Device:',device)
+print('Torch Device:', device)
 
 # 定义saver
-date=time.strftime('%y.%m.%d')
+date = time.strftime('%y.%m.%d')
 save_pth = cfg.save_pth
 
 print('load model')
 # 定义模型
-net = PDF(mode='test')
+net = PDF()
 net.to(device)
 print('set to test mode')
 net.eval()
@@ -73,47 +78,39 @@ net.eval()
 net.load_state_dict(torch.load(cfg.weight_for_test))
 
 # 启动summary
-global_steps=0
+global_steps = 0
 
 
 for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(test_loader):
-        print(i)
-        global_steps+=1
-        # calc loading time
+    print(i)
+    global_steps += 1
+    # calc loading time
 
-        # add Varibles
-        img1=Variable(img1.cuda())
-        img0=Variable(img1.cuda())
-        intrinsics=Variable(intrinsics.cuda())
-        intrinsics_inv=Variable(intrinsics_inv.cuda())
+    # add Varibles
+    img1 = img1.cuda()
+    img0 = img1.cuda()
+    intrinsics = intrinsics.cuda()
+    intrinsics_inv = intrinsics_inv.cuda()
 
-        depth_maps, pose, flows=net([img1,img0])
+    depth_maps, pose, flows = net([img1, img0])
 
-        depth0 = [d[:,0] for d in depth_maps]
-        depth1 = [d[:,1] for d in depth_maps]
+    depth0 = [d[:, 0] for d in depth_maps]
+    depth1 = [d[:, 1] for d in depth_maps]
 
-        flow0 = [f[:,:2] for f in flows]
-        flow1 = [f[:,2:] for f in flows]
+    flow0 = [f[:, :2] for f in flows]
+    flow1 = [f[:, 2:] for f in flows]
 
-        # generate multi scale mask, including forward and backward masks
+    # generate multi scale mask, including forward and backward masks
 
-        forward_warped = flow_warp(img0, flow0).unsqueeze(0).numpy()
-        backward_warped = flow_warp(img1, flow1).unsqueeze(0).numpy()
+    forward_warped = flow_warp(
+        img0, flow0[0]).cpu().detach().numpy().squeeze(0)
+    backward_warped = flow_warp(
+        img1, flow1[0]).cpu().detach().numpy().squeeze(0)
 
-        forward_warped = forward_warped.transpose(1,2,0)
-        backward_warped = backward_warped.transpose(1,2,0)
+    forward_warped = forward_warped.transpose(1, 2, 0)*0.5+0.5
+    backward_warped = backward_warped.transpose(1, 2, 0)*0.5+0.5
 
-        cv2.imwrite(cfg.test_tmp/'{}_forward.jpg'.format(i), forward_warped*0.5+0.5)
-        cv2.imwrite(cfg.test_tmp/'{}_backward.jpg'.format(i), backward_warped*0.5+0.5)
-
-
-
-    
-
-
-
-            
-
-
-
-
+    cv2.imwrite(cfg.test_tmp/'{}_forward.jpg'.format(i),
+                    np.uint8(forward_warped*255))
+    cv2.imwrite(cfg.test_tmp/'{}_backward.jpg'.format(i),
+                    np.uint8(backward_warped*255))

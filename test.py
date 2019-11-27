@@ -9,6 +9,7 @@ from model import PDF
 from geometrics import inverse_warp, flow_warp, pose2flow, mask_gen, pose_vec2mat
 from losses import *
 from tensorboardX import SummaryWriter
+import cv2
 
 
 def get_time():
@@ -74,33 +75,6 @@ net.load_state_dict(torch.load(cfg.weight_for_test))
 # 启动summary
 global_steps=0
 
-losses={}  
-# 开始迭代
-# for epoch in range(cfg.max_epoch):
-#     tic=time.time()
-#     iters=0
-#     accumulated_loss=0
-    
-    
-#     # validate
-
-#     # for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(val_loader):
-
-
-#     # calc average loss per epoch
-#     interval = time.time()-tic
-#     avg_loss=accumulated_loss/iters
-
-#     print('**** Epoch {}: Time Elapse:{} Average Loss:{} ****'.format(epoch,interval,avg_loss))
-    
-#     if epoch == 0:
-#         min_loss = avg_loss
-#         continue
-    
-#     if avg_loss < min_loss:
-#         min_loss = avg_loss
-#         filename='{}_epoch_{}.pt'.format(get_time(),epoch)
-#         torch.save(net.state_dict(),f=save_pth/filename)
 
 for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(test_loader):
         print(i)
@@ -115,57 +89,26 @@ for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(test_loader):
 
         depth_maps, pose, flows=net([img1,img0])
 
-        depth_t0_multi_scale = [d[:,0] for d in depth_maps]
-        depth_t1_multi_scale = [d[:,1] for d in depth_maps]
+        depth0 = [d[:,0] for d in depth_maps]
+        depth1 = [d[:,1] for d in depth_maps]
 
-        flow_t0_multi_scale = [f[:,:2] for f in flows]
-        flow_t1_multi_scale = [f[:,2:] for f in flows]
+        flow0 = [f[:,:2] for f in flows]
+        flow1 = [f[:,2:] for f in flows]
 
-        # generate multi scale mask, including forward and backward masks        
-        masks = multi_scale_mask(
-            multi_scale=4, depth = (depth_t0_multi_scale, depth_t1_multi_scale),
-            pose= pose, flow=(flow_t0_multi_scale, flow_t1_multi_scale), 
-            intrinsics = intrinsics, intrinsics_inv = intrinsics_inv        
-        )
+        # generate multi scale mask, including forward and backward masks
 
-        # 2 major losses
-        losses['depth_consistency'] = loss_depth_consistency(
-            depth_t0_multi_scale, depth_t1_multi_scale, pose=pose, img_src=img0, img_tgt=img1,
-            multi_scale=4,intrinsics=intrinsics, intrinsics_inv = intrinsics_inv, mask=masks
-        )
-        
-        losses['flow_consistency'] = loss_flow_consistency(
-            flow_t0_multi_scale,flow_t1_multi_scale,img0, img1,multi_scale=4
-        )
+        forward_warped = flow_warp(img0, flow0).unsqueeze(0).numpy()
+        backward_warped = flow_warp(img1, flow1).unsqueeze(0).numpy()
 
-        total_loss = loss_sum(losses)     
+        forward_warped = forward_warped.transpose(1,2,0)
+        backward_warped = backward_warped.transpose(1,2,0)
 
-        print('loss calced, now backwards')
-        opt.zero_grad()
-        total_loss.backward()
-        opt.step()
-        scheduler.step(metrics=total_loss)
+        cv2.imwrite(cfg.test_tmp/'{}_forward.jpg'.format(i), forward_warped*0.5+0.5)
+        cv2.imwrite(cfg.test_tmp/'{}_backward.jpg'.format(i), backward_warped*0.5+0.5)
 
-        #calc time per step
-    
-        accumulated_loss += total_loss.to('cpu').item()
-        iters+=1
 
-        if global_steps % cfg.steps == 0:
-            # 每 cfg.steps 批次打印一次
-            test_writer.add_scalar(
-                'depth_consistency_loss', losses['depth_consistency'].item(), global_steps
-            ) # summary 参数不可以是torch tensor
-            test_writer.add_scalar(
-                'flow_consistency_loss', losses['flow_consistency'].item(), global_steps
-            )
-               
-            print('[epoch %d,  %5d iter] total loss: %.6f '%(epoch + 1, i + 1, total_loss.to('cpu'), ))
-            accumulated_loss = 0.0
-   
 
     
-
 
 
 

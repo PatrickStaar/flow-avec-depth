@@ -116,6 +116,9 @@ def multi_scale_mask(multi_scale, depth, pose, flow, intrinsics, intrinsics_inv)
 # forward-backward consistency loss
 def loss_flow_consistency(forward, backward, img_src, img_tgt, multi_scale=0):
 
+    def flow_consistency(forward, backward):
+        return l2_norm(-forward-backward)
+
     losses = []
     if multi_scale > 0:
         for s in range(multi_scale):
@@ -128,7 +131,8 @@ def loss_flow_consistency(forward, backward, img_src, img_tgt, multi_scale=0):
             forward_warped = flow_warp(img_src_s, forward[s])
             backward_warped = flow_warp(img_tgt_s, backward[s])
             losses.append(loss_reconstruction(img_tgt_s, forward_warped) +
-                          loss_reconstruction(img_src_s, backward_warped))
+                          loss_reconstruction(img_src_s, backward_warped)+
+                          flow_consistency(forward[s],backward[s]))
 
     else:
         losses.append(loss_reconstruction(img_tgt, flow_warp(img_src, forward)) +

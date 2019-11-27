@@ -8,7 +8,7 @@ dataset_root=Path('./dataset')
 dataset='tum'
 dataset_path=dataset_root/dataset
 split_ratio=0.6
-batch_size=4
+batch_size=3
 sequence_len=20
 
 # image
@@ -35,9 +35,9 @@ steps=10
 loss_weight={
     'depth_consistency':0.,
     'flow_consistency':1.,
-    'depth_supervise':1,
-    'flow_supervise':1,
-    'pose_supervise':1,
+    'depth_supervise':0,
+    'flow_supervise':0,
+    'pose_supervise':0,
     'smoothness':0.5,
 }
 multi_scale_weight=[1.,0.5,0.1,0.01]
@@ -46,3 +46,8 @@ reconstruction_weights=[1,0.5,0.1]
 
 save_pth=Path('./checkpoints')
 log=Path('./log')
+
+# test
+
+weight_for_test = save_pth
+test_tmp = Path('./tmp')

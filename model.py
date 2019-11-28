@@ -8,12 +8,19 @@ from collections import OrderedDict
 
 ## main model
 
-def conv(in_channels, out_channels, k=3, stride=2, padding=1):
-    return nn.Sequential(
-        nn.Conv2d(in_channels, out_channels, k, stride, padding, bias=False,),
-        nn.BatchNorm2d(out_channels),
-        nn.ReLU()
-    )
+def conv(in_channels, out_channels, k=3, stride=2, padding=1, output=False):
+    if output:
+        return nn.Sequential(
+                    nn.Conv2d(in_channels, out_channels, k, stride, padding, bias=False,),
+                    nn.Tanh()
+                )
+    else:
+        return nn.Sequential(
+                    nn.Conv2d(in_channels, out_channels, k, stride, padding, bias=False,),
+                    nn.BatchNorm2d(out_channels),
+                    nn.ReLU()
+                )
+
 
 
 def deconv(inchannel, outchannel):
@@ -83,15 +90,15 @@ class PDF(nn.Module):
             conv(512, 512, stride=1),
         )
 
-        self.output2_depth = conv(deconv_channels[2], 2, k=1, stride=1, padding=0)
-        self.output3_depth = conv(deconv_channels[3], 2, k=1, stride=1, padding=0)
-        self.output4_depth = conv(deconv_channels[4], 2, k=1, stride=1, padding=0)
-        self.output5_depth = conv(deconv_channels[5], 2, k=1, stride=1, padding=0)
+        self.output2_depth = conv(deconv_channels[2], 2, k=1, stride=1, padding=0,output=True)
+        self.output3_depth = conv(deconv_channels[3], 2, k=1, stride=1, padding=0,output=True)
+        self.output4_depth = conv(deconv_channels[4], 2, k=1, stride=1, padding=0,output=True)
+        self.output5_depth = conv(deconv_channels[5], 2, k=1, stride=1, padding=0,output=True)
 
-        self.output2_flow = conv(deconv_channels[2], 4, k=1, stride=1, padding=0)
-        self.output3_flow = conv(deconv_channels[3], 4, k=1, stride=1, padding=0)
-        self.output4_flow = conv(deconv_channels[4], 4, k=1, stride=1, padding=0)
-        self.output5_flow = conv(deconv_channels[5], 4, k=1, stride=1, padding=0)
+        self.output2_flow = conv(deconv_channels[2], 4, k=1, stride=1, padding=0,output=True)
+        self.output3_flow = conv(deconv_channels[3], 4, k=1, stride=1, padding=0,output=True)
+        self.output4_flow = conv(deconv_channels[4], 4, k=1, stride=1, padding=0,output=True)
+        self.output5_flow = conv(deconv_channels[5], 4, k=1, stride=1, padding=0,output=True)
 
         self.pose_estmation = nn.Sequential(
             conv(512, 512),
@@ -101,9 +108,9 @@ class PDF(nn.Module):
 
         self.fc = nn.Sequential(
             nn.Linear(2*3*128, 512),
-            nn.Sigmoid(),
+            nn.Tanh(),
             nn.Linear(512, 256),
-            nn.Sigmoid(),
+            nn.Tanh(),
             nn.Linear(256, 6)
         )
 
@@ -190,7 +197,7 @@ class PDF(nn.Module):
         # weights train from scratch
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-                nn.init.kaiming_normal(m.weight.data)
+                nn.init.kaiming_uniform(m.weight.data)
                 if m.bias is not None:
                     m.bias.data.zero_()
 

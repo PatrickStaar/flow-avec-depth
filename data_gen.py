@@ -7,7 +7,7 @@ import random
 import cfg
 
 
-def explore(folder_list, sequence_len = 0, max_interval=3):
+def explore(folder_list, sequence_len = 0):
     sequences=[]
     for f in folder_list:
         intrinsics= np.genfromtxt(f/'cam.txt', delimiter=',').astype(np.float32).reshape((3, 3))
@@ -16,7 +16,7 @@ def explore(folder_list, sequence_len = 0, max_interval=3):
 
         for i in range(1,n):
             # select ref frame from previous 1 to 3 steps
-            d = random.randint(1,max_interval)
+            d = random.randint(1,cfg.max_interval)
             if i-d < 0:
                 d=1
             
@@ -31,14 +31,13 @@ def explore(folder_list, sequence_len = 0, max_interval=3):
 
 
 # for TUM格式
-def explore_tum(folder_list, fixed_intrinsics=True, max_interval=2, shuffle=True, train=True):
+def explore_tum(folder_list, fixed_intrinsics=True, shuffle=True, train=True):
 
     sequences = []
     index = 'rgb.txt' if train else 'test.txt'
 
     if fixed_intrinsics :
         intrinsics=np.genfromtxt(cfg.fixed_intrinsics, delimiter=' ').astype(np.float32).reshape((3, 3)) 
-    
     
     for f in folder_list:
         if not fixed_intrinsics:
@@ -49,7 +48,7 @@ def explore_tum(folder_list, fixed_intrinsics=True, max_interval=2, shuffle=True
 
         for i in range(1,len(imgs)):
             
-            d = random.randint(1,max_interval)
+            d = random.randint(1,cfg.max_interval)
             if i-d < 0:
                 d=1
 

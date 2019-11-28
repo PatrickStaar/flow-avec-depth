@@ -132,7 +132,6 @@ def loss_flow_consistency(forward, backward, img_src, img_tgt, multi_scale=0):
                 loss_reconstruction(img_tgt_s, img_tgt_warped) +
                 loss_reconstruction(img_src_s, img_src_warped) +
                 flow_consistency(forward[s], backward[s]))
-
     else:
         losses.append(loss_reconstruction(img_tgt, flow_warp(img_src, forward)) +
                       loss_reconstruction(img_src, flow_warp(img_tgt, backward)))

@@ -10,6 +10,7 @@ dataset_path=dataset_root/dataset
 split_ratio=0.6
 batch_size=2
 sequence_len=20
+max_interval=3
 
 # image
 # unsure
@@ -26,7 +27,7 @@ from_checkpoint=False
 pretrained_weights=''
 
 # optimizer
-max_epoch=100
+max_epoch=20
 lr = 0.01
 steps=100
 
@@ -41,7 +42,7 @@ loss_weight={
 }
 
 multi_scale_weight=[1.,0.5,0.1,0.01]
-reconstruction_weights=[1,0.5,0.1]
+reconstruction_weights=[1.,0.5,0.1]
 # post training
 
 save_pth=Path('./checkpoints')
@@ -49,6 +50,5 @@ log=Path('./log')
 
 # test
 
-
 test_tmp = Path('./tmp')
-weight_for_test = save_pth/'11.27.14.12.10_epoch_2.pt'
+weight_for_test = save_pth/'11.28.13.56.20_epoch_8.pt'

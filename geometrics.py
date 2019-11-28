@@ -207,12 +207,17 @@ def flow_warp(img, flow, padding_mode='zeros'):
     grid_y = Variable(torch.arange(0, h).view(1, h, 1).expand(
         1, h, w), requires_grad=False).type_as(v).expand_as(v)  # [bs, H, W]
 
-    X = grid_x + u
-    Y = grid_y + v
+    # original methods
+    # X = grid_x + u
+    # Y = grid_y + v
 
-    # I don't get this#################$$$$$$$$$$
-    X = 2*(X/(w-1.0) - 0.5)
-    Y = 2*(Y/(h-1.0) - 0.5)
+    # X = 2*(X/(w-1.0) - 0.5)
+    # Y = 2*(Y/(h-1.0) - 0.5)
+
+    # u,v as relative movement
+    X = 2*(grid_x/(w-1.0) - 0.5 + u)
+    Y = 2*(grid_y/(h-1.0) - 0.5 + v)
+    
     grid_tf = torch.stack((X, Y), dim=3)
     img_tf = torch.nn.functional.grid_sample(
         img, grid_tf, padding_mode=padding_mode)

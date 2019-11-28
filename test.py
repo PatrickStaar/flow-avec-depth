@@ -20,7 +20,7 @@ def get_time():
 # 数据预处理
 t = Compose([
     ArrayToTensor(),
-    Normalize(mean=cfg.mean, std=cfg.std),
+    # Normalize(mean=cfg.mean, std=cfg.std),
 ])
 
 print('composed transform')
@@ -81,14 +81,14 @@ net.load_state_dict(torch.load(cfg.weight_for_test))
 global_steps = 0
 
 
-for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(test_loader):
+for i, (img0, img1, intrinsics, intrinsics_inv) in enumerate(test_loader):
     print(i)
     global_steps += 1
     # calc loading time
 
     # add Varibles
+    img0 = img0.cuda()
     img1 = img1.cuda()
-    img0 = img1.cuda()
     intrinsics = intrinsics.cuda()
     intrinsics_inv = intrinsics_inv.cuda()
 
@@ -107,8 +107,16 @@ for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(test_loader):
     backward_warped = flow_warp(
         img1, flow1[0]).cpu().detach().numpy().squeeze(0)
 
-    forward_warped = forward_warped.transpose(1, 2, 0)*0.5+0.5
-    backward_warped = backward_warped.transpose(1, 2, 0)*0.5+0.5
+    forward_warped = forward_warped.transpose(1, 2, 0)
+    backward_warped = backward_warped.transpose(1, 2, 0)
+    forward_img = img1.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)
+    backward_img = img0.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)
+
+
+    cv2.imwrite(cfg.test_tmp/'{}_forward_src.jpg'.format(i),
+                    np.uint8(forward_img*255))
+    cv2.imwrite(cfg.test_tmp/'{}_backward_src.jpg'.format(i),
+                    np.uint8(backward_img*255))
 
     cv2.imwrite(cfg.test_tmp/'{}_forward.jpg'.format(i),
                     np.uint8(forward_warped*255))

@@ -19,7 +19,7 @@ def get_time():
 # 数据预处理
 t = Compose([
     ArrayToTensor(),
-    Normalize(mean=cfg.mean, std=cfg.std),
+    # Normalize(mean=cfg.mean, std=cfg.std),
 ])
 
 print('composed transform')
@@ -30,7 +30,7 @@ trainset = data_generator(
     transform=t,
     sequence_length=cfg.sequence_len,
     format=cfg.dataset,
-    shuffle=False
+    shuffle=True
 )
 
 # 定义生成器

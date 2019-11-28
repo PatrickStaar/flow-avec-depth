@@ -8,18 +8,22 @@ from collections import OrderedDict
 
 ## main model
 
-def conv(in_channels, out_channels, k=3, stride=2, padding=1, output=False):
+def conv(in_channels, out_channels, k=3, stride=2, padding=1, output=False, activation='leaky'):
     if output:
-        return nn.Sequential(
-                    nn.Conv2d(in_channels, out_channels, k, stride, padding, bias=False,),
-                    nn.Tanh()
-                )
+        return nn.Conv2d(in_channels, out_channels, k, stride, padding, bias=False,)     
     else:
-        return nn.Sequential(
-                    nn.Conv2d(in_channels, out_channels, k, stride, padding, bias=False,),
-                    nn.BatchNorm2d(out_channels),
-                    nn.ReLU()
-                )
+        if activation == 'relu':
+            return nn.Sequential(
+                        nn.Conv2d(in_channels, out_channels, k, stride, padding, bias=False,),
+                        nn.BatchNorm2d(out_channels),
+                        nn.ReLU()
+                    )
+        else:
+            return nn.Sequential(
+                        nn.Conv2d(in_channels, out_channels, k, stride, padding, bias=False,),
+                        nn.BatchNorm2d(out_channels),
+                        nn.LeakyReLU(0.1,inplace=True) #nn.ReLU()
+                    )
 
 
 
@@ -31,7 +35,7 @@ def deconv(inchannel, outchannel):
         nn.ConvTranspose2d(inchannel, outchannel, kernel_size=3,
                            stride=2, padding=1, output_padding=1, bias=False),
         # nn.BatchNorm2d(cfg[1]),
-        nn.ReLU()
+        nn.LeakyReLU(0.1,inplace=True) #nn.ReLU()
     )
 
 
@@ -56,13 +60,13 @@ class PDF(nn.Module):
         conv_channels = [64, 64, 128, 256, 512]
         deconv_channels = [512, 256, 128, 64, 32, 16]
         depth_output_channels = [0, 0, 2, 2, 2, 2]
-        flow_output_channels = [0, 0, 4, 4, 4, 4]
+        flow_output_channels = [0, 0, 2, 2, 2, 2] # [0, 0, 4, 4, 4, 4]
         block_num = [3, 4, 6, 3]
         self.dilation = 1
         self.groups = 1
         self.base_width = 64
 
-        self.conv1 = conv(3, 32, k=7, stride=2, padding=3)
+        self.conv1 = conv(3, 32, k=7, stride=2, padding=3, activation= 'relu')
 
         # resblocks of 4 size
         blocks = OrderedDict([
@@ -85,15 +89,15 @@ class PDF(nn.Module):
 
         # for depth
         self.another_conv = nn.Sequential(
-            conv(512, 512, stride=1),
-            conv(512, 512, stride=1),
-            conv(512, 512, stride=1),
+            conv(512, 512, stride=1,activation='relu'),
+            conv(512, 512, stride=1,activation='relu'),
+            conv(512, 512, stride=1,activation='relu'),
         )
 
-        self.output2_depth = conv(deconv_channels[2], 2, k=1, stride=1, padding=0,output=True)
-        self.output3_depth = conv(deconv_channels[3], 2, k=1, stride=1, padding=0,output=True)
-        self.output4_depth = conv(deconv_channels[4], 2, k=1, stride=1, padding=0,output=True)
-        self.output5_depth = conv(deconv_channels[5], 2, k=1, stride=1, padding=0,output=True)
+        self.output2_depth = conv(deconv_channels[2], 2, k=1, stride=1, padding=0,output=True,activation='relu')
+        self.output3_depth = conv(deconv_channels[3], 2, k=1, stride=1, padding=0,output=True,activation='relu')
+        self.output4_depth = conv(deconv_channels[4], 2, k=1, stride=1, padding=0,output=True,activation='relu')
+        self.output5_depth = conv(deconv_channels[5], 2, k=1, stride=1, padding=0,output=True,activation='relu')
 
         self.output2_flow = conv(deconv_channels[2], 4, k=1, stride=1, padding=0,output=True)
         self.output3_flow = conv(deconv_channels[3], 4, k=1, stride=1, padding=0,output=True)
@@ -101,24 +105,24 @@ class PDF(nn.Module):
         self.output5_flow = conv(deconv_channels[5], 4, k=1, stride=1, padding=0,output=True)
 
         self.pose_estmation = nn.Sequential(
-            conv(512, 512),
-            conv(512, 256),
-            conv(256, 128),
+            conv(512, 512,activation='relu'),
+            conv(512, 256,activation='relu'),
+            conv(256, 128,activation='relu'),
         )
 
         self.fc = nn.Sequential(
             nn.Linear(2*3*128, 512),
-            nn.Tanh(),
+            nn.LeakyReLU(0.1,inplace=True),
             nn.Linear(512, 256),
-            nn.Tanh(),
+            nn.LeakyReLU(0.1,inplace=True),
             nn.Linear(256, 6)
         )
 
     def forward(self, inputs):
-        x, y = inputs
-        input1 = self.conv1(x)  # 32
-        input2 = self.conv1(y)  # 32
-        x = cat([input1, input2])  # 64
+        input0, input1 = inputs
+        input0 = self.conv1(input0)  # 32
+        input1 = self.conv1(input1)  # 32
+        x = cat([input0, input1])  # 64
 
         x1 = self.resblocks.layer_1(x)
         x2 = self.resblocks.layer_2(x1)
@@ -194,12 +198,22 @@ class PDF(nn.Module):
             return [d5,],p,[f5,]
 
     def init_weights(self):
-        # weights train from scratch
+
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-                nn.init.kaiming_uniform(m.weight.data)
+                nn.init.kaiming_normal_(m.weight, 0.1)
                 if m.bias is not None:
-                    m.bias.data.zero_()
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+        # for m in self.modules():
+        #     if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+        #         nn.init.kaiming_uniform(m.weight.data)
+        #         if m.bias is not None:
+        #             m.bias.data.zero_()
+
 
     def _make_layer(self, inchannels, block, channels, blocks, stride=1, dilate=False):
         downsample = None
@@ -212,7 +226,7 @@ class PDF(nn.Module):
         if stride != 1 or inchannels != channels * block.expansion:
             downsample = nn.Sequential(
                 conv(inchannels, channels * block.expansion,
-                     stride=stride, k=1, padding=0),
+                     stride=stride, k=1, padding=0, activation='relu'),
             )
 
         layers = []

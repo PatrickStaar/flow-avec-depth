@@ -9,7 +9,7 @@ from model import PDF
 from geometrics import inverse_warp, flow_warp, pose2flow, mask_gen, pose_vec2mat
 from losses import *
 from tensorboardX import SummaryWriter
-
+import tqdm
 
 def get_time():
     T = time.strftime('%m.%d.%H.%M.%S', time.localtime())
@@ -108,7 +108,7 @@ for epoch in range(cfg.max_epoch):
     tic = time.time()
     iters = 0
     accumulated_loss = 0
-    for i, (img0, img1, intrinsics, intrinsics_inv) in enumerate(train_loader):
+    for i, (img0, img1, intrinsics, intrinsics_inv) in tqdm(enumerate(train_loader)):
         global_steps += 1
 
         # add Varibles
@@ -118,17 +118,19 @@ for epoch in range(cfg.max_epoch):
         intrinsics_inv = Variable(intrinsics_inv.cuda())
 
         depth_maps, pose, flows = net([img0, img1])
+        
+        flows_backward = [-f for f in flows]
 
         depth_t0_multi_scale = [d[:, 0] for d in depth_maps]
         depth_t1_multi_scale = [d[:, 1] for d in depth_maps]
 
-        flow_t0_multi_scale = [f[:, :2] for f in flows]
-        flow_t1_multi_scale = [f[:, 2:] for f in flows]
+        # flow_t0_multi_scale = [f[:, 0] for f in flows]
+        # flow_t1_multi_scale = [f[:, 1] for f in flows]
 
         # generate multi scale mask, including forward and backward masks
         masks = multi_scale_mask(
             multi_scale=4, depth=(depth_t0_multi_scale, depth_t1_multi_scale),
-            pose=pose, flow=(flow_t0_multi_scale, flow_t1_multi_scale),
+            pose=pose, flow=(flows, flows_backward),
             intrinsics=intrinsics, intrinsics_inv=intrinsics_inv
         )
 
@@ -139,7 +141,7 @@ for epoch in range(cfg.max_epoch):
         )
 
         losses['flow_consistency'] = loss_flow_consistency(
-            flow_t0_multi_scale, flow_t1_multi_scale, img0, img1, multi_scale=4
+            flows, img0, img1, multi_scale=4
         )
 
         total_loss = loss_sum(losses)
@@ -152,19 +154,19 @@ for epoch in range(cfg.max_epoch):
         # calc time per step
         accumulated_loss += total_loss.to('cpu').item()
 
-        if (i+1) % cfg.steps == 0:
-            # 每 cfg.steps 批次打印一次
-            train_writer.add_scalar(
-                'depth_consistency_loss', losses['depth_consistency'].item(
-                ), global_steps
-            )  # summary 参数不可以是torch tensor
-            train_writer.add_scalar(
-                'flow_consistency_loss', losses['flow_consistency'].item(
-                ), global_steps
-            )
+        # if (i+1) % cfg.steps == 0:
+        #     # 每 cfg.steps 批次打印一次
+        #     train_writer.add_scalar(
+        #         'depth_consistency_loss', losses['depth_consistency'].item(
+        #         ), global_steps
+        #     )  # summary 参数不可以是torch tensor
+        #     train_writer.add_scalar(
+        #         'flow_consistency_loss', losses['flow_consistency'].item(
+        #         ), global_steps
+        #     )
 
-            print('--epoch {} iter {} loss:{:.6f} '.format(epoch +
-                    1, i+1, total_loss.to('cpu').item(), ))
+        #     print('--epoch {} iter {} loss:{:.6f} '.format(epoch +
+        #             1, i+1, total_loss.to('cpu').item(), ))
 
     # validate
 

@@ -54,9 +54,6 @@ class PDF(nn.Module):
 
         super(PDF, self).__init__()
         
-        self.inputs = nn.Conv2d(6, 3, kernel_size=7,
-                                stride=2, padding=3, bias=False)
-
         conv_channels = [64, 64, 128, 256, 512]
         deconv_channels = [512, 256, 128, 64, 32, 16]
         depth_output_channels = [0, 0, 2, 2, 2, 2]
@@ -66,17 +63,16 @@ class PDF(nn.Module):
         self.groups = 1
         self.base_width = 64
 
-        self.conv1 = conv(3, 32, k=7, stride=2, padding=3, activation= 'relu')
-
+        # self.conv1 = conv(3, 32, k=7, stride=2, padding=3, activation= 'relu')
+        self.conv0 = conv(6,64,k=7,stride=2,padding=3,activation='relu')
         # resblocks of 4 size
-        blocks = OrderedDict([
-            ("layer_{}".format(i+1),
-                self._make_layer(
-                    conv_channels[i], BasicBlock, conv_channels[i+1], blocks=block_num[i], stride=2)
-             ) for i in range(4)
-        ])
 
-        self.resblocks = nn.Sequential(blocks)
+        self.res1 = self._make_layer(Bottleneck, 64, block_num[0])
+        self.res2 = self._make_layer(Bottleneck, 128, block_num[1], stride=2,)
+        self.res3 = self._make_layer(Bottleneck, 256, block_num[2], stride=2,)
+        self.res4 = self._make_layer(Bottleneck, 512, block_num[3], stride=2,)
+
+        # self.resblocks = nn.Sequential(blocks)
 
         self.deconv_depth = nn.Sequential(deconv_group(deconv_channels,depth_output_channels))
         self.deconv_flow = nn.Sequential(deconv_group(deconv_channels,flow_output_channels))
@@ -119,43 +115,37 @@ class PDF(nn.Module):
         )
 
     def forward(self, inputs):
-        input0, input1 = inputs
-        input0 = self.conv1(input0)  # 32
-        input1 = self.conv1(input1)  # 32
-        x = cat([input0, input1])  # 64
+        
+        x = cat(inputs)  
+        x = self.conv0(x) # 6->64
 
-        x1 = self.resblocks.layer_1(x)
-        x2 = self.resblocks.layer_2(x1)
-        x3 = self.resblocks.layer_3(x2)
-        x4 = self.resblocks.layer_4(x3)
+        x1 = self.res1(x)
+        x2 = self.res2(x1)
+        x3 = self.res3(x2)
+        x4 = self.res4(x3)
 
         # feature=F.max_pool2d(kernel_size=2,stride=2)
 
         # Depth Part
         d = self.another_conv(x4)
 
-        d = cat([d, x4])
-        d = self.conv1x1_1(d)
+        d = self.conv1x1_1(cat([d, x4]))
         d = self.deconv_depth.layer_1(d)  # 512->256
         # d1 = self.output1(d1)
 
-        d = cat([d, x3])
-        d = self.conv1x1_2(d)
+        d = self.conv1x1_2(cat([d, x3]))
         d = self.deconv_depth.layer_2(d)  # 256->128
         d2 = self.output2_depth(d)
 
-        d = cat([d, x2])
-        d = self.conv1x1_3(d)
+        d = self.conv1x1_3(cat([d, x2]))
         d = self.deconv_depth.layer_3(cat([d, d2]))  # 128->64
         d3 = self.output3_depth(d)
 
-        d = cat([d, x1])
-        d = self.conv1x1_4(d)
+        d = self.conv1x1_4(cat([d, x1]))
         d = self.deconv_depth.layer_4(cat([d, d3]))  # 64->32
         d4 = self.output4_depth(d)
 
-        d = cat([d, x])
-        d = self.conv1x1_5(d)
+        d = self.conv1x1_5(cat([d, x]))
         d = self.deconv_depth.layer_5(cat([d, d4]))  # 32->16
         d5 = self.output5_depth(d)
 
@@ -167,28 +157,23 @@ class PDF(nn.Module):
         # Flow Part
         f = self.another_conv(x4)
 
-        f = cat([f, x4])
-        f = self.conv1x1_1(f)
+        f = self.conv1x1_1(cat([f, x4]))
         f = self.deconv_flow.layer_1(f)  # 512->256
         # f1 = self.output1(f1)
 
-        f = cat([f, x3])
-        f = self.conv1x1_2(f)
+        f = self.conv1x1_2( cat([f, x3]))
         f = self.deconv_flow.layer_2(f)  # 256->128
         f2 = self.output2_flow(f)
 
-        f = cat([f, x2])
-        f = self.conv1x1_3(f)
+        f = self.conv1x1_3(cat([f, x2]))
         f = self.deconv_flow.layer_3(cat([f, f2]))  # 128->64
         f3 = self.output3_flow(f)
 
-        f = cat([f, x1])
-        f = self.conv1x1_4(f)
+        f = self.conv1x1_4(cat([f, x1]))
         f = self.deconv_flow.layer_4(cat([f, f3]))  # 64->32
         f4 = self.output4_flow(f)
 
-        f = cat([f, x])
-        f = self.conv1x1_5(f)
+        f = self.conv1x1_5(cat([f, x]))
         f = self.deconv_flow.layer_5(cat([f, f4]))  # 32->16
         f5 = self.output5_flow(f)
 
@@ -200,7 +185,8 @@ class PDF(nn.Module):
     def init_weights(self):
 
         for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d)\
+            or isinstance(m, nn.Linear):
                 nn.init.kaiming_normal_(m.weight, 0.1)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
@@ -237,6 +223,7 @@ class PDF(nn.Module):
         inchannels = channels * block.expansion
 
         for _ in range(1, blocks):
-            layers.append(block(inchannels, channels))
+            layers.append(block(inchannels, channels, groups=self.groups,
+                base_width=self.base_width, dilation=self.dilation))
 
         return nn.Sequential(*layers)

@@ -23,12 +23,12 @@ def gradient(pred):
     return dx, dy
 
 
-def loss_reconstruction(img_warped, img_tgt, mask=None):
+def loss_reconstruction(img_tgt, img_warped, mask=None):
 
     B, _, H, W = img_warped.size()
     # create valid mask of
-    valid_mask = 1 - (img_warped == 0).prod(1,
-                                            keepdim=True).type_as(img_warped)
+    valid_mask = 1 - (img_warped == 0).\
+                    prod(1, keepdim=True).type_as(img_warped)
 
     if mask is not None:
         valid_mask = valid_mask*mask
@@ -36,7 +36,7 @@ def loss_reconstruction(img_warped, img_tgt, mask=None):
     img_warped = img_warped*valid_mask
     img_tgt = img_tgt*valid_mask
 
-    valid_loss = 1 - valid_mask.sum()/valid_mask.nelement()
+    valid_loss = 1 - valid_mask.sum()/float(valid_mask.nelement())
     ssim_loss = (1-ssim(img_warped, img_tgt))
     l2_loss = l2_norm(img_warped-img_tgt)
 
@@ -144,7 +144,7 @@ def multi_scale_mask(multi_scale, depth, pose, flow, intrinsics, intrinsics_inv)
 
 def loss_flow_consistency(flow, img_src, img_tgt, multi_scale=0):
 
-    losses = []
+    loss = 0.
     if multi_scale > 0:
         for s in range(multi_scale):
             B, _, H, W = flow[s].size()
@@ -155,13 +155,9 @@ def loss_flow_consistency(flow, img_src, img_tgt, multi_scale=0):
 
             img_tgt_warped = flow_warp(img_src_s, flow[s])
 
-            losses.append(loss_reconstruction(img_tgt_s, img_tgt_warped))
+            loss+=(loss_reconstruction(img_tgt_s, img_tgt_warped)*multi_scale_weights[s])
     else:
-        losses.append(loss_reconstruction(img_tgt, flow_warp(img_src, flow[0])))
-    
-    loss = 0
-    for i in range(len(losses)):
-        loss += losses[i]*multi_scale_weights[i]
+        loss += loss_reconstruction(img_tgt, flow_warp(img_src, flow[0]))
 
     return loss
 
@@ -171,8 +167,7 @@ def loss_depth_consistency(
         depth_t0, depth_t1, pose, img_src, img_tgt,
         intrinsics, intrinsics_inv, mask=None, multi_scale=0):
 
-    losses = []
-    weights = []
+    loss = 0
 
     if multi_scale > 0:
         origine = img_src.size()[-1]
@@ -198,7 +193,7 @@ def loss_depth_consistency(
             l = loss_reconstruction(img_tgt_s, img_tgt_warped, mask[s][0]) +\
                 loss_reconstruction(img_src_s, img_src_warped, mask[s][1])
 
-            losses.append(l)
+            loss += (l*multi_scale_weights[s])
 
     else:
         img_tgt_warped = inverse_warp(
@@ -209,12 +204,7 @@ def loss_depth_consistency(
         l = loss_reconstruction(img_tgt_s, img_tgt_warped, mask[0]) + \
             loss_reconstruction(img_src_s, img_src_warped, mask[1])
 
-        losses.append(l)
-
-    loss = 0
-
-    for i in range(len(losses)):
-        loss += losses[i]*multi_scale_weights[i]
+        loss += l
 
     return loss
 

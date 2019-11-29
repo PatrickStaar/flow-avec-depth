@@ -11,6 +11,7 @@ split_ratio=0.6
 batch_size=2
 sequence_len=20
 max_interval=3
+rigid=True
 
 # image
 # unsure
@@ -42,7 +43,7 @@ loss_weight={
 }
 
 multi_scale_weight=[1.,0.5,0.1,0.01]
-reconstruction_weights=[1.,0.5,0.1]
+reconstruction_weights=[1.,0.1,0.5]
 # post training
 
 save_pth=Path('./checkpoints')

@@ -215,8 +215,8 @@ def flow_warp(img, flow, padding_mode='zeros'):
     # Y = 2*(Y/(h-1.0) - 0.5)
 
     # u,v as relative movement
-    X = 2*(grid_x/(w-1.0) - 0.5 + u)
-    Y = 2*(grid_y/(h-1.0) - 0.5 + v)
+    X = 2*(grid_x/(w-1.0) - 0.5) + u
+    Y = 2*(grid_y/(h-1.0) - 0.5) + v
     
     grid_tf = torch.stack((X, Y), dim=3)
     img_tf = torch.nn.functional.grid_sample(
@@ -253,6 +253,10 @@ def pose2flow(depth, pose, intrinsics, intrinsics_inv, rotation_mode='euler', pa
 
     X = (w-1)*(src_pixel_coords[:, :, :, 0]/2.0 + 0.5) - grid_x
     Y = (h-1)*(src_pixel_coords[:, :, :, 1]/2.0 + 0.5) - grid_y
+
+    # converted to relative flow
+    X = X/(w-1)
+    Y = Y/(h-1)
 
     return torch.stack((X, Y), dim=1)
 

@@ -9,7 +9,8 @@ from model import PDF
 from geometrics import inverse_warp, flow_warp, pose2flow, mask_gen, pose_vec2mat
 from losses import *
 from tensorboardX import SummaryWriter
-import tqdm
+from tqdm import tqdm
+
 
 def get_time():
     T = time.strftime('%m.%d.%H.%M.%S', time.localtime())
@@ -108,14 +109,15 @@ for epoch in range(cfg.max_epoch):
     tic = time.time()
     iters = 0
     accumulated_loss = 0
-    for i, (img0, img1, intrinsics, intrinsics_inv) in tqdm(enumerate(train_loader)):
+    process = tqdm(enumerate(train_loader))
+    for i, (img0, img1, intrinsics, intrinsics_inv) in process:
         global_steps += 1
 
         # add Varibles
-        img0 = Variable(img0.cuda())
-        img1 = Variable(img1.cuda())
-        intrinsics = Variable(intrinsics.cuda())
-        intrinsics_inv = Variable(intrinsics_inv.cuda())
+        img0 = Variable(img0.to(device))
+        img1 = Variable(img1.to(device))
+        intrinsics = Variable(intrinsics.to(device))
+        intrinsics_inv = Variable(intrinsics_inv.to(device))
 
         depth_maps, pose, flows = net([img0, img1])
         
@@ -128,23 +130,25 @@ for epoch in range(cfg.max_epoch):
         # flow_t1_multi_scale = [f[:, 1] for f in flows]
 
         # generate multi scale mask, including forward and backward masks
-        masks = multi_scale_mask(
-            multi_scale=4, depth=(depth_t0_multi_scale, depth_t1_multi_scale),
-            pose=pose, flow=(flows, flows_backward),
-            intrinsics=intrinsics, intrinsics_inv=intrinsics_inv
-        )
+        if not cfg.rigid:
+            masks = multi_scale_mask(
+                multi_scale=4, depth=(depth_t0_multi_scale, depth_t1_multi_scale),
+                pose=pose, flow=(flows, flows_backward),
+                intrinsics=intrinsics, intrinsics_inv=intrinsics_inv )
+        else:
+            # mask is not needed in full rigid scenes
+            masks = None
 
         # 2 major losses
         losses['depth_consistency'] = loss_depth_consistency(
             depth_t0_multi_scale, depth_t1_multi_scale, pose=pose, img_src=img0, img_tgt=img1,
-            multi_scale=4, intrinsics=intrinsics, intrinsics_inv=intrinsics_inv, mask=masks
-        )
+            multi_scale=4, intrinsics=intrinsics, intrinsics_inv=intrinsics_inv, mask=masks )
 
         losses['flow_consistency'] = loss_flow_consistency(
-            flows, img0, img1, multi_scale=4
-        )
+            flows, img0, img1, multi_scale=4 )
 
         total_loss = loss_sum(losses)
+        process.set_description("Epoch {}, Current Loss:{:.8f}".format(epoch+1, total_loss.to('cpu').item()))
 
         opt.zero_grad()
         total_loss.backward()
@@ -153,6 +157,7 @@ for epoch in range(cfg.max_epoch):
 
         # calc time per step
         accumulated_loss += total_loss.to('cpu').item()
+
 
         # if (i+1) % cfg.steps == 0:
         #     # 每 cfg.steps 批次打印一次
@@ -177,7 +182,7 @@ for epoch in range(cfg.max_epoch):
     avg_loss = accumulated_loss/float(total_iteration)
 
     print('**** Epoch {}: Time Elapse:{:.4f} Iteration:{} Average Loss:{:.6f} ****'
-          .format(epoch, interval, total_iteration, avg_loss)
+          .format(epoch+1, interval, total_iteration, avg_loss)
           )
 
     if epoch == 0:
@@ -186,5 +191,5 @@ for epoch in range(cfg.max_epoch):
 
     if avg_loss < min_loss:
         min_loss = avg_loss
-        filename = '{}_epoch_{}.pt'.format(get_time(), epoch)
+        filename = '{}_epoch_{}.pt'.format(get_time(), epoch+1)
         torch.save(net.state_dict(), f=save_pth/filename)

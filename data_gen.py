@@ -10,6 +10,8 @@ import cfg
 def explore(folder_list, sequence_len = 0):
     sequences=[]
     for f in folder_list:
+        if f == '':
+            continue
         intrinsics= np.genfromtxt(f/'cam.txt', delimiter=',').astype(np.float32).reshape((3, 3))
         imgs=sorted(f.files('*.jpg'))
         n = sequence_len if sequence_len > 0 else len(imgs) 
@@ -40,6 +42,9 @@ def explore_tum(folder_list, fixed_intrinsics=True, shuffle=True, train=True):
         intrinsics=np.genfromtxt(cfg.fixed_intrinsics, delimiter=' ').astype(np.float32).reshape((3, 3)) 
     
     for f in folder_list:
+        if f == '':
+            continue
+
         if not fixed_intrinsics:
             intrinsics=np.genfromtxt(f/'cam.txt', delimiter=' ').astype(np.float32).reshape((3, 3)) 
         
@@ -78,7 +83,7 @@ class data_generator(data.Dataset):
         self.root = Path(root)
         # 在dataset/下创建train.txt 和 val.txt，内容为要使用的scence文件夹
         scene_list_path = self.root/'train.txt' if train else self.root/'train.txt' # just for now
-        self.scenes = [self.root/folder[:-1] for folder in open(scene_list_path)]
+        self.scenes = [self.root/(folder.strip('\n')) for folder in open(scene_list_path)]
 
         if format == 'tum':
             self.samples = explore_tum(self.scenes, shuffle, train=train)

@@ -66,11 +66,11 @@ class PDF(nn.Module):
         # self.conv1 = conv(3, 32, k=7, stride=2, padding=3, activation= 'relu')
         self.conv0 = conv(6,64,k=7,stride=2,padding=3,activation='relu')
         # resblocks of 4 size
-
-        self.res1 = self._make_layer(Bottleneck, 64, block_num[0])
-        self.res2 = self._make_layer(Bottleneck, 128, block_num[1], stride=2,)
-        self.res3 = self._make_layer(Bottleneck, 256, block_num[2], stride=2,)
-        self.res4 = self._make_layer(Bottleneck, 512, block_num[3], stride=2,)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.res1 = self._make_layer( 64, 64, BasicBlock, block_num[0])
+        self.res2 = self._make_layer( 64, 128, BasicBlock, block_num[1], stride=2,)
+        self.res3 = self._make_layer( 128, 256, BasicBlock, block_num[2], stride=2,)
+        self.res4 = self._make_layer( 256, 512, BasicBlock, block_num[3], stride=2,)
 
         # self.resblocks = nn.Sequential(blocks)
 
@@ -118,7 +118,7 @@ class PDF(nn.Module):
         
         x = cat(inputs)  
         x = self.conv0(x) # 6->64
-
+        x0 = self.maxpool(x)
         x1 = self.res1(x)
         x2 = self.res2(x1)
         x3 = self.res3(x2)
@@ -201,7 +201,7 @@ class PDF(nn.Module):
         #             m.bias.data.zero_()
 
 
-    def _make_layer(self, inchannels, block, channels, blocks, stride=1, dilate=False):
+    def _make_layer(self, inchannels, channels, block, blocks, stride=1, dilate=False):
         downsample = None
         previous_dilation = self.dilation
 
@@ -210,16 +210,15 @@ class PDF(nn.Module):
             stride = 1
 
         if stride != 1 or inchannels != channels * block.expansion:
-            downsample = nn.Sequential(
-                conv(inchannels, channels * block.expansion,
-                     stride=stride, k=1, padding=0, activation='relu'),
+            downsample =nn.Sequential(
+                conv(inchannels, channels * block.expansion, 1, stride, padding=0,output=True),
+                nn.BatchNorm2d(channels * block.expansion),
             )
 
         layers = []
         layers.append(block(inchannels, channels, stride, downsample, 
                 self.groups, self.base_width, previous_dilation))
 
-        # resnet34 中暂且不用考虑 expansion
         inchannels = channels * block.expansion
 
         for _ in range(1, blocks):

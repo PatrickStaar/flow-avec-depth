@@ -6,8 +6,8 @@ import cfg
 
 
 eps = 1e-8
-multi_scale_weights = cfg.multi_scale_weight
-reconstruction_weights = cfg.reconstruction_weights
+multi_scale_weights = torch.Tensor(cfg.multi_scale_weight)
+reconstruction_weights = torch.Tensor(cfg.reconstruction_weights)
 
 # image reconstruction loss
 
@@ -36,8 +36,8 @@ def loss_reconstruction(img_tgt, img_warped, mask=None):
     img_warped = img_warped*valid_mask
     img_tgt = img_tgt*valid_mask
 
-    valid_loss = 1 - valid_mask.sum()/float(valid_mask.nelement())
-    ssim_loss = (1-ssim(img_warped, img_tgt))
+    valid_loss = 1 - valid_mask.sum()/valid_mask.nelement()
+    ssim_loss = 1-ssim(img_warped, img_tgt)
     l2_loss = l2_norm(img_warped-img_tgt)
 
     loss = l2_loss*reconstruction_weights[0] +\
@@ -189,9 +189,13 @@ def loss_depth_consistency(
                 img_src_s, depth_t0[s], pose, intrinsics_s, intrinsics_inv_s)
             img_src_warped = inverse_warp(
                 img_tgt_s, depth_t1[s], -pose, intrinsics_s, intrinsics_inv_s)
-
-            l = loss_reconstruction(img_tgt_s, img_tgt_warped, mask[s][0]) +\
-                loss_reconstruction(img_src_s, img_src_warped, mask[s][1])
+        
+            if mask is not None:
+                l = loss_reconstruction(img_tgt_s, img_tgt_warped, mask[s][1]) +\
+                    loss_reconstruction(img_src_s, img_src_warped, mask[s][0])
+            else:
+                l = loss_reconstruction(img_tgt_s, img_tgt_warped) +\
+                    loss_reconstruction(img_src_s, img_src_warped)
 
             loss += (l*multi_scale_weights[s])
 
@@ -201,8 +205,8 @@ def loss_depth_consistency(
         img_src_warped = inverse_warp(
             img_tgt, depth_t1[0], -pose, intrinsics, intrinsics_inv)
 
-        l = loss_reconstruction(img_tgt_s, img_tgt_warped, mask[0]) + \
-            loss_reconstruction(img_src_s, img_src_warped, mask[1])
+        l = loss_reconstruction(img_tgt_s, img_tgt_warped, mask[1]) + \
+            loss_reconstruction(img_src_s, img_src_warped, mask[0])
 
         loss += l
 

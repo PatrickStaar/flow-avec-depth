@@ -114,10 +114,10 @@ for epoch in range(cfg.max_epoch):
         global_steps += 1
 
         # add Varibles
-        img0 = Variable(img0.to(device))
-        img1 = Variable(img1.to(device))
-        intrinsics = Variable(intrinsics.to(device))
-        intrinsics_inv = Variable(intrinsics_inv.to(device))
+        img0 =img0.to(device)
+        img1 =img1.to(device)
+        intrinsics =intrinsics.to(device)
+        intrinsics_inv =intrinsics_inv.to(device)
 
         depth_maps, pose, flows = net([img0, img1])
         

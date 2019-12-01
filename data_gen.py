@@ -83,7 +83,7 @@ class data_generator(data.Dataset):
         self.root = Path(root)
         # 在dataset/下创建train.txt 和 val.txt，内容为要使用的scence文件夹
         scene_list_path = self.root/'train.txt' if train else self.root/'train.txt' # just for now
-        self.scenes = [self.root/(folder.strip('\n')) for folder in open(scene_list_path)]
+        self.scenes = [self.root/(folder.strip('\n')) for folder in open(scene_list_path) if len(folder)>1]
 
         if format == 'tum':
             self.samples = explore_tum(self.scenes, shuffle, train=train)

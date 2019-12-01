@@ -97,20 +97,20 @@ for i, (img0, img1, intrinsics, intrinsics_inv) in enumerate(test_loader):
     depth0 = [d[:, 0] for d in depth_maps]
     depth1 = [d[:, 1] for d in depth_maps]
 
-    flow0 = [f[:, :2] for f in flows]
-    flow1 = [f[:, 2:] for f in flows]
+    flow0 = flows[0]
+    flow1 = -flow0
 
     # generate multi scale mask, including forward and backward masks
 
     forward_warped = flow_warp(
-        img0, flow0[0]).cpu().detach().numpy().squeeze(0)
+        img0, flow0).cpu().detach().numpy().squeeze(0)
     backward_warped = flow_warp(
-        img1, flow1[0]).cpu().detach().numpy().squeeze(0)
+        img1, flow1).cpu().detach().numpy().squeeze(0)
 
-    forward_warped = forward_warped.transpose(1, 2, 0)
-    backward_warped = backward_warped.transpose(1, 2, 0)
-    forward_img = img1.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)
-    backward_img = img0.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)
+    forward_warped = forward_warped.transpose(1, 2, 0)*0.5+0.5
+    backward_warped = backward_warped.transpose(1, 2, 0)*0.5+0.5
+    forward_img = img1.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)*0.5+0.5
+    backward_img = img0.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)*0.5+0.5
 
 
     cv2.imwrite(cfg.test_tmp/'{}_forward_src.jpg'.format(i),

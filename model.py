@@ -95,10 +95,10 @@ class PDF(nn.Module):
         self.output4_depth = conv(deconv_channels[4], 2, k=1, stride=1, padding=0,output=True,activation='relu')
         self.output5_depth = conv(deconv_channels[5], 2, k=1, stride=1, padding=0,output=True,activation='relu')
 
-        self.output2_flow = conv(deconv_channels[2], 4, k=1, stride=1, padding=0,output=True)
-        self.output3_flow = conv(deconv_channels[3], 4, k=1, stride=1, padding=0,output=True)
-        self.output4_flow = conv(deconv_channels[4], 4, k=1, stride=1, padding=0,output=True)
-        self.output5_flow = conv(deconv_channels[5], 4, k=1, stride=1, padding=0,output=True)
+        self.output2_flow = conv(deconv_channels[2], 2, k=1, stride=1, padding=0,output=True)
+        self.output3_flow = conv(deconv_channels[3], 2, k=1, stride=1, padding=0,output=True)
+        self.output4_flow = conv(deconv_channels[4], 2, k=1, stride=1, padding=0,output=True)
+        self.output5_flow = conv(deconv_channels[5], 2, k=1, stride=1, padding=0,output=True)
 
         self.pose_estmation = nn.Sequential(
             conv(512, 512,activation='relu'),
@@ -119,7 +119,7 @@ class PDF(nn.Module):
         x = cat(inputs)  
         x = self.conv0(x) # 6->64
         x0 = self.maxpool(x)
-        x1 = self.res1(x)
+        x1 = self.res1(x0)
         x2 = self.res2(x1)
         x3 = self.res3(x2)
         x4 = self.res4(x3)
@@ -187,12 +187,12 @@ class PDF(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d)\
             or isinstance(m, nn.Linear):
-                nn.init.kaiming_normal_(m.weight, 0.1)
+                nn.init.xavier_uniform(m.weight)
                 if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+                    nn.init.constant(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+                nn.init.constant(m.weight, 1)
+                nn.init.constant(m.bias, 0)
 
         # for m in self.modules():
         #     if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
@@ -211,7 +211,7 @@ class PDF(nn.Module):
 
         if stride != 1 or inchannels != channels * block.expansion:
             downsample =nn.Sequential(
-                conv(inchannels, channels * block.expansion, 1, stride, padding=0,output=True),
+                conv(inchannels, channels * block.expansion, 1, stride, padding=0,output=True,activation='relu'),
                 nn.BatchNorm2d(channels * block.expansion),
             )
 

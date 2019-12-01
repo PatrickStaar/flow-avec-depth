@@ -19,8 +19,9 @@ def get_time():
 
 # 数据预处理
 t = Compose([
+    RandomHorizontalFlip(),
     ArrayToTensor(),
-    # Normalize(mean=cfg.mean, std=cfg.std),
+    Normalize(mean=cfg.mean, std=cfg.std),
 ])
 
 print('composed transform')
@@ -87,16 +88,13 @@ net.train()
 # 是否导入预训练
 if cfg.pretrain:
     net.load_state_dict(torch.load(cfg.pretrained_weights))
-if cfg.from_checkpoint:
-    pass
-    # net.load_state_dict(torch.load(cfg.))
 else:
     net.init_weights()
 
 # 设置优化器
 weights = net.parameters()
 opt = torch.optim.Adam(weights, lr=cfg.lr)
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
+# scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
 
 # 启动summary
 global_steps = 0
@@ -148,12 +146,12 @@ for epoch in range(cfg.max_epoch):
             flows, img0, img1, multi_scale=4 )
 
         total_loss = loss_sum(losses)
-        process.set_description("Epoch {}, Current Loss:{:.8f}".format(epoch+1, total_loss.to('cpu').item()))
+        process.set_description("Epoch {}, Iter {}, Current Loss:{:.8f} ".format(epoch+1, i+1, total_loss.to('cpu').item()))
 
         opt.zero_grad()
         total_loss.backward()
         opt.step()
-        scheduler.step(metrics=total_loss)
+        # scheduler.step(metrics=total_loss)
 
         # calc time per step
         accumulated_loss += total_loss.to('cpu').item()
@@ -180,8 +178,9 @@ for epoch in range(cfg.max_epoch):
     # calc average loss per epoch
     interval = time.time()-tic
     avg_loss = accumulated_loss/float(total_iteration)
-
+    print('***************************************************************************')
     print('**** Epoch {}: Time Elapse:{:.4f} Iteration:{} Average Loss:{:.6f} ****'
+    print('***************************************************************************')
           .format(epoch+1, interval, total_iteration, avg_loss)
           )
 

@@ -28,7 +28,7 @@ log=Path('./log')
 
 # model
 pretrain=True
-pretrained_weights=save_pth/'12.01.20.44.13_epoch_20.pt'
+pretrained_weights=save_pth/'12.02.22.14.24_epoch_99.pt'
 
 # optimizer
 max_epoch=100
@@ -45,11 +45,11 @@ loss_weight={
     'smoothness':0.5,
 }
 
-multi_scale_weight=[1.,0.5,0.1,0.01]
-reconstruction_weights=[1.,0.1,0.5]
+multi_scale_weight=[1.,1.,1.,1.]
+reconstruction_weights=[1.,1.,0.5]
 # post training
 
 # test
 
 test_tmp = Path('./tmp')
-weight_for_test = save_pth/'12.01.20.44.13_epoch_20.pt'
+weight_for_test = save_pth/'12.02.22.14.24_epoch_99.pt'

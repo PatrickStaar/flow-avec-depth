@@ -104,11 +104,11 @@ for i, (img0, img1, intrinsics, intrinsics_inv) in enumerate(test_loader):
 
     forward_warped = flow_warp(
         img0, flow0).cpu().detach().numpy().squeeze(0)
-    backward_warped = flow_warp(
-        img1, flow1).cpu().detach().numpy().squeeze(0)
+    # backward_warped = flow_warp(
+    #     img1, flow1).cpu().detach().numpy().squeeze(0)
 
     forward_warped = forward_warped.transpose(1, 2, 0)*0.5+0.5
-    backward_warped = backward_warped.transpose(1, 2, 0)*0.5+0.5
+    # backward_warped = backward_warped.transpose(1, 2, 0)*0.5+0.5
     forward_img = img1.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)*0.5+0.5
     backward_img = img0.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)*0.5+0.5
 
@@ -120,5 +120,5 @@ for i, (img0, img1, intrinsics, intrinsics_inv) in enumerate(test_loader):
 
     cv2.imwrite(cfg.test_tmp/'{}_forward.jpg'.format(i),
                     np.uint8(forward_warped*255))
-    cv2.imwrite(cfg.test_tmp/'{}_backward.jpg'.format(i),
-                    np.uint8(backward_warped*255))
+    # cv2.imwrite(cfg.test_tmp/'{}_backward.jpg'.format(i),
+    #                 np.uint8(backward_warped*255))

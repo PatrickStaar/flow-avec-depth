@@ -179,11 +179,10 @@ for epoch in range(cfg.max_epoch):
     interval = time.time()-tic
     avg_loss = accumulated_loss/float(total_iteration)
     print('***************************************************************************')
-    print('**** Epoch {}: Time Elapse:{:.4f} Iteration:{} Average Loss:{:.6f} ****'
+    print('**** Epoch {}: Time Elapse:{:.4f} Iteration:{} Average Loss:{:.6f} ****'\
+        .format(epoch+1, interval, total_iteration, avg_loss))
     print('***************************************************************************')
-          .format(epoch+1, interval, total_iteration, avg_loss)
-          )
-
+    
     if epoch == 0:
         min_loss = avg_loss
         continue

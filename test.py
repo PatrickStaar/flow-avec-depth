@@ -10,6 +10,7 @@ from geometrics import inverse_warp, flow_warp, pose2flow, mask_gen, pose_vec2ma
 from losses import *
 from tensorboardX import SummaryWriter
 import cv2
+from matplotlib import pyplot as plt
 
 
 def get_time():
@@ -20,7 +21,7 @@ def get_time():
 # 数据预处理
 t = Compose([
     ArrayToTensor(),
-    # Normalize(mean=cfg.mean, std=cfg.std),
+    Normalize(mean=cfg.mean, std=cfg.std),
 ])
 
 print('composed transform')
@@ -40,7 +41,7 @@ testset = data_generator(
 test_loader = DataLoader(
     testset,
     batch_size=1,
-    shuffle=True,
+    shuffle=False,
     pin_memory=True,  # 锁页内存
 )
 
@@ -79,7 +80,7 @@ net.load_state_dict(torch.load(cfg.weight_for_test))
 
 # 启动summary
 global_steps = 0
-
+outcome = []
 
 for i, (img0, img1, intrinsics, intrinsics_inv) in enumerate(test_loader):
     print(i)
@@ -92,33 +93,53 @@ for i, (img0, img1, intrinsics, intrinsics_inv) in enumerate(test_loader):
     intrinsics = intrinsics.cuda()
     intrinsics_inv = intrinsics_inv.cuda()
 
-    depth_maps, pose, flows = net([img1, img0])
+    depth_maps, pose, flows = net([img0, img1])
 
-    depth0 = [d[:, 0] for d in depth_maps]
-    depth1 = [d[:, 1] for d in depth_maps]
+    # depth0 = [d[:, 0] for d in depth_maps]
+    # depth1 = [d[:, 1] for d in depth_maps]
 
     flow0 = flows[0]
-    flow1 = -flow0
 
     # generate multi scale mask, including forward and backward masks
 
     forward_warped = flow_warp(
         img0, flow0).cpu().detach().numpy().squeeze(0)
-    # backward_warped = flow_warp(
-    #     img1, flow1).cpu().detach().numpy().squeeze(0)
+    backward_warped = flow_warp(
+        img1, -flow0).cpu().detach().numpy().squeeze(0)
 
     forward_warped = forward_warped.transpose(1, 2, 0)*0.5+0.5
-    # backward_warped = backward_warped.transpose(1, 2, 0)*0.5+0.5
-    forward_img = img1.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)*0.5+0.5
-    backward_img = img0.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)*0.5+0.5
+    backward_warped = backward_warped.transpose(1, 2, 0)*0.5+0.5
+    img1 = img1.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)*0.5+0.5
+    img0 = img0.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)*0.5+0.5
+    
+    outcome.append((forward_warped, backward_warped, img0, img1))
 
-
-    cv2.imwrite(cfg.test_tmp/'{}_forward_src.jpg'.format(i),
-                    np.uint8(forward_img*255))
-    cv2.imwrite(cfg.test_tmp/'{}_backward_src.jpg'.format(i),
-                    np.uint8(backward_img*255))
+    cv2.imwrite(cfg.test_tmp/'{}_img0.jpg'.format(i),
+                    np.uint8(img0*255))
+    cv2.imwrite(cfg.test_tmp/'{}_img1.jpg'.format(i),
+                    np.uint8(img1*255))
 
     cv2.imwrite(cfg.test_tmp/'{}_forward.jpg'.format(i),
                     np.uint8(forward_warped*255))
-    # cv2.imwrite(cfg.test_tmp/'{}_backward.jpg'.format(i),
-    #                 np.uint8(backward_warped*255))
+    cv2.imwrite(cfg.test_tmp/'{}_backward.jpg'.format(i),
+                    np.uint8(backward_warped*255))
+
+fig=plt.Figure()
+for warped, inverse_warped, img0, img1 in outcome:
+    i0=plt.subplot(221)
+    i0.set_title('warped')
+    i0.imshow(warped)
+
+    i1=plt.subplot(222)
+    i1.set_title('target')
+    i1.imshow(img1)
+
+    i2=plt.subplot(223)
+    i2.set_title('inverse_warped')
+    i2.imshow(inverse_warped)
+
+    i2=plt.subplot(224)
+    i2.set_title('source')
+    i2.imshow(img0)
+
+    plt.show()

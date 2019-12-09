@@ -11,7 +11,7 @@ split_ratio=0.6
 batch_size=4
 sequence_len=20
 max_interval=3
-rigid=True
+rigid=False
 
 # image
 # unsure

@@ -14,7 +14,32 @@ def explore(folder_list, sequence_len = 0):
             continue
         intrinsics= np.genfromtxt(f/'cam.txt', delimiter=',').astype(np.float32).reshape((3, 3))
         imgs=sorted(f.files('*.jpg'))
-        n = sequence_len if sequence_len > 0 else len(imgs) 
+        n = sequence_len if sequence_len > 0 else len(imgs)
+
+        for i in range(1,n):
+            # select ref frame from previous 1 to 3 steps
+            d = random.randint(1,cfg.max_interval)
+            if i-d < 0:
+                d=1
+            
+            sample = {
+                'intrinsics':intrinsics,
+                'img_t1':imgs[i],
+                'img_t0':imgs[i-d]
+            }
+            sequences.append(sample)
+        random.shuffle(sequences)
+    return sequences
+
+def explore_kitti(folder_list, sequence_len = 0):
+    sequences=[]
+    for f in folder_list:
+        if f == '':
+            continue
+        intrinsics= np.genfromtxt(f/'cam.txt', delimiter=',').astype(np.float32).reshape((3, 3))
+        f_mono=f/'image_2'
+        imgs=sorted(f_mono.files('*.png'))
+        n = sequence_len if sequence_len > 0 else len(imgs)
 
         for i in range(1,n):
             # select ref frame from previous 1 to 3 steps
@@ -82,13 +107,13 @@ class data_generator(data.Dataset):
         random.seed(seed)
         self.root = Path(root)
         # 在dataset/下创建train.txt 和 val.txt，内容为要使用的scence文件夹
-        scene_list_path = self.root/'train.txt' if train else self.root/'train.txt' # just for now
+        scene_list_path = self.root/'train.txt' if train else self.root/'val.txt' # just for now
         self.scenes = [self.root/(folder.strip('\n')) for folder in open(scene_list_path) if len(folder)>1]
 
         if format == 'tum':
             self.samples = explore_tum(self.scenes, shuffle, train=train)
         else:
-            self.samples = explore(self.scenes, sequence_length)
+            self.samples = explore_kitti(self.scenes, shuffle, train=train)
         self.transform = transform
 
     def __getitem__(self, index):

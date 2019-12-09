@@ -43,18 +43,21 @@ train_loader = DataLoader(
     pin_memory=True,  # 锁页内存
 )
 
-# valset=data_generator(root=cfg.dataset_path,
-#                         transform=t,
-#                         train=False,
-#                         sequence_length=cfg.sequence_len,
-#                         format=cfg.dataset
-# )
+valset = data_generator(
+    root=cfg.dataset_path,
+    transform=t,
+    train=False,
+    sequence_length=cfg.sequence_len,
+    format=cfg.dataset,
+    shuffle=False,
+)
 
-# val_loader=DataLoader(valset,
-#                         batch_size=cfg.batch_size,
-#                         shuffle=True,
-#                         pin_memory=True
-# )
+val_loader = DataLoader(
+    valset,
+    batch_size=cfg.batch_size,
+    shuffle=False,
+    pin_memory=True
+)
 
 print('defined data_loader')
 # 定义summary
@@ -82,8 +85,7 @@ print('load model')
 # 定义模型
 net = PDF()
 net.to(device)
-print('set to train mode')
-net.train()
+
 
 # 是否导入预训练
 if cfg.pretrain:
@@ -99,11 +101,16 @@ opt = torch.optim.Adam(weights, lr=cfg.lr)
 # 启动summary
 global_steps = 0
 total_iteration = len(train_loader)
+val_sample_num = len(val_loader)
 print('Sample Number:', total_iteration)
+print('Val Sample Number:', val_loader)
 
 losses = {}
+val_loss = {}
 # 开始迭代
 for epoch in range(cfg.max_epoch):
+    # set to train mode
+    net.train()
     tic = time.time()
     iters = 0
     accumulated_loss = 0
@@ -112,13 +119,13 @@ for epoch in range(cfg.max_epoch):
         global_steps += 1
 
         # add Varibles
-        img0 =img0.to(device)
-        img1 =img1.to(device)
-        intrinsics =intrinsics.to(device)
-        intrinsics_inv =intrinsics_inv.to(device)
+        img0 = img0.to(device)
+        img1 = img1.to(device)
+        intrinsics = intrinsics.to(device)
+        intrinsics_inv = intrinsics_inv.to(device)
 
         depth_maps, pose, flows = net([img0, img1])
-        
+
         flows_backward = [-f for f in flows]
 
         depth_t0_multi_scale = [d[:, 0] for d in depth_maps]
@@ -132,7 +139,7 @@ for epoch in range(cfg.max_epoch):
             masks = multi_scale_mask(
                 multi_scale=4, depth=(depth_t0_multi_scale, depth_t1_multi_scale),
                 pose=pose, flow=(flows, flows_backward),
-                intrinsics=intrinsics, intrinsics_inv=intrinsics_inv )
+                intrinsics=intrinsics, intrinsics_inv=intrinsics_inv)
         else:
             # mask is not needed in full rigid scenes
             masks = None
@@ -140,13 +147,14 @@ for epoch in range(cfg.max_epoch):
         # 2 major losses
         losses['depth_consistency'] = loss_depth_consistency(
             depth_t0_multi_scale, depth_t1_multi_scale, pose=pose, img_src=img0, img_tgt=img1,
-            multi_scale=4, intrinsics=intrinsics, intrinsics_inv=intrinsics_inv, mask=masks )
+            multi_scale=4, intrinsics=intrinsics, intrinsics_inv=intrinsics_inv, mask=masks)
 
         losses['flow_consistency'] = loss_flow_consistency(
-            flows, img0, img1, multi_scale=4 )
+            flows, img0, img1, multi_scale=4)
 
         total_loss = loss_sum(losses)
-        process.set_description("Epoch {}, Iter {}, Current Loss:{:.8f} ".format(epoch+1, i+1, total_loss.to('cpu').item()))
+        process.set_description("Epoch {}, Iter {}, Current Loss:{:.8f} ".format(
+            epoch+1, i+1, total_loss.to('cpu').item()))
 
         opt.zero_grad()
         total_loss.backward()
@@ -155,7 +163,6 @@ for epoch in range(cfg.max_epoch):
 
         # calc time per step
         accumulated_loss += total_loss.to('cpu').item()
-
 
         # if (i+1) % cfg.steps == 0:
         #     # 每 cfg.steps 批次打印一次
@@ -171,17 +178,70 @@ for epoch in range(cfg.max_epoch):
         #     print('--epoch {} iter {} loss:{:.6f} '.format(epoch +
         #             1, i+1, total_loss.to('cpu').item(), ))
 
-    # validate
-
-    # for i, (img1, img0, intrinsics, intrinsics_inv) in enumerate(val_loader):
+    
 
     # calc average loss per epoch
     interval = time.time()-tic
     avg_loss = accumulated_loss/float(total_iteration)
     print('***************************************************************************')
-    print('**** Epoch {}: Time Elapse:{:.4f} Iteration:{} Average Loss:{:.6f} ****'\
+    print('**** Epoch {}: Time Elapse:{:.4f} Iteration:{} Average Loss:{:.6f} ****'
+          .format(epoch+1, interval, total_iteration, avg_loss))
+    print('***************************************************************************')
+
+
+    # validation
+    # set to val mode
+    val_total_loss = 0
+    net.eval()
+    val_process = tqdm(enumerate(val_loader))
+    for i, (img0, img1, intrinsics, intrinsics_inv) in val_process:
+        img0 = img0.to(device)
+        img1 = img1.to(device)
+        intrinsics = intrinsics.to(device)
+        intrinsics_inv = intrinsics_inv.to(device)
+
+        depthmap, pose, flow = net([img0, img1])
+
+        flow_backward = [-f for f in flow]
+
+        depth0 = [d[:, 0] for d in depthmap]
+        depth1 = [d[:, 1] for d in depthmap]
+
+        # flow_t0_multi_scale = [f[:, 0] for f in flows]
+        # flow_t1_multi_scale = [f[:, 1] for f in flows]
+
+        # generate multi scale mask, including forward and backward masks
+        if not cfg.rigid:
+            masks = multi_scale_mask(
+                multi_scale=1, depth=(depth0, depth1),
+                pose=pose, flow=(flow, flow_backward),
+                intrinsics=intrinsics, intrinsics_inv=intrinsics_inv)
+        else:
+            # mask is not needed in full rigid scenes
+            masks = None
+
+        # 2 major losses
+        val_losses['depth_consistency'] = loss_depth_consistency(
+            depth0, depth1, pose=pose, img_src=img0, img_tgt=img1,
+            multi_scale=0, intrinsics=intrinsics, intrinsics_inv=intrinsics_inv, mask=masks)
+
+        val_losses['flow_consistency'] = loss_flow_consistency(
+            flows, img0, img1, multi_scale=0)
+
+        val_loss = loss_sum(losses)
+        val_process.set_description(
+            "Val-Sample {}, Current Loss:{:.8f}".format(i+1, val_loss.to('cpu').item()))
+
+        # scheduler.step(metrics=total_loss)
+
+        val_total_loss += val_loss.to('cpu').item()
+
+    val_avg_loss = val_total_loss/float(val_sample_num)
+    print('***************************************************************************')
+    print('**** Epoch {}: Time Elapse:{:.4f} Iteration:{} Average Loss:{:.6f} ****'
         .format(epoch+1, interval, total_iteration, avg_loss))
     print('***************************************************************************')
+    
     
     if epoch == 0:
         min_loss = avg_loss

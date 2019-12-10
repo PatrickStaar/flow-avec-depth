@@ -31,12 +31,13 @@ def explore(folder_list, sequence_len = 0):
         random.shuffle(sequences)
     return sequences
 
-def explore_kitti(folder_list, sequence_len = 0):
+def explore_kitti(folder_list, sequence_len = 0, shuffle=True):
     sequences=[]
     for f in folder_list:
         if f == '':
             continue
-        intrinsics= np.genfromtxt(f/'cam.txt', delimiter=',').astype(np.float32).reshape((3, 3))
+        intrinsics= np.genfromtxt(f/'cam.txt').astype(np.float32)
+        intrinsics = intrinsics.reshape((3, 3))
         f_mono=f/'image_2'
         imgs=sorted(f_mono.files('*.png'))
         n = sequence_len if sequence_len > 0 else len(imgs)
@@ -101,7 +102,7 @@ def load_as_float(path):
 
 class data_generator(data.Dataset):
 
-    def __init__(self, root, seed=None, train=True, sequence_length=3, 
+    def __init__(self, root, seed=None, train=True, sequence_length=0, 
     transform=None, target_transform=None, format='', shuffle=True):
         np.random.seed(seed)
         random.seed(seed)
@@ -113,7 +114,8 @@ class data_generator(data.Dataset):
         if format == 'tum':
             self.samples = explore_tum(self.scenes, shuffle, train=train)
         else:
-            self.samples = explore_kitti(self.scenes, shuffle, train=train)
+            self.samples = explore_kitti(
+                self.scenes, shuffle=shuffle, sequence_len= sequence_length)
         self.transform = transform
 
     def __getitem__(self, index):

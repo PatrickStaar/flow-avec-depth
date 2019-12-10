@@ -5,11 +5,10 @@ import numpy as np
 
 # dataset
 dataset_root=Path('./dataset')
-dataset='tum'
+dataset='kitti'
 dataset_path=dataset_root/dataset
-split_ratio=0.6
-batch_size=4
-sequence_len=20
+batch_size=8
+sequence_len=0
 max_interval=3
 rigid=False
 
@@ -27,7 +26,7 @@ save_pth=Path('./checkpoints')
 log=Path('./log')
 
 # model
-pretrain=True
+pretrain=False
 pretrained_weights=save_pth/'12.03.22.51.17_epoch_95.pt'
 
 # optimizer
@@ -46,7 +45,7 @@ loss_weight={
 }
 
 multi_scale_weight=[1.,1.,1.,1.]
-reconstruction_weights=[1.,1.,0.5]
+reconstruction_weights=[1.,1.,0.1]
 # post training
 
 # test

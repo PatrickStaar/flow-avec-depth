@@ -102,12 +102,12 @@ class PDF(nn.Module):
 
         self.pose_estmation = nn.Sequential(
             conv(512, 512,activation='relu'),
-            conv(512, 256,activation='relu'),
-            conv(256, 128,activation='relu'),
+            conv(512, 512,activation='relu'),
+            # conv(256, 128,activation='relu'),
         )
-
+        self.adaptive_pooling = nn.AdaptiveMaxPool2d(1)
         self.fc = nn.Sequential(
-            nn.Linear(2*3*128, 512),
+            nn.Linear(512, 512),
             nn.LeakyReLU(0.1,inplace=True),
             nn.Linear(512, 256),
             nn.LeakyReLU(0.1,inplace=True),
@@ -151,6 +151,7 @@ class PDF(nn.Module):
 
         # Pose Part
         p = self.pose_estmation(x4)
+        p = self.adaptive_pooling(p)
         p = th.flatten(p, start_dim=1)
         p = self.fc(p)
 
@@ -187,12 +188,12 @@ class PDF(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d)\
             or isinstance(m, nn.Linear):
-                nn.init.xavier_uniform(m.weight)
+                nn.init.xavier_uniform_(m.weight)
                 if m.bias is not None:
-                    nn.init.constant(m.bias, 0)
+                    nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant(m.weight, 1)
-                nn.init.constant(m.bias, 0)
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
 
         # for m in self.modules():
         #     if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):

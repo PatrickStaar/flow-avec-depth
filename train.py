@@ -19,10 +19,18 @@ def get_time():
 
 # 数据预处理
 t = Compose([
+    Scale(384,1280),
     RandomHorizontalFlip(),
     ArrayToTensor(),
     Normalize(mean=cfg.mean, std=cfg.std),
 ])
+
+t_val = Compose([
+    Scale(384,1280),
+    ArrayToTensor(),
+    Normalize(mean=cfg.mean, std=cfg.std),
+])
+
 
 print('composed transform')
 
@@ -58,6 +66,7 @@ val_loader = DataLoader(
     shuffle=False,
     pin_memory=True
 )
+
 
 print('defined data_loader')
 # 定义summary
@@ -105,7 +114,7 @@ val_sample_num = len(val_loader)
 print('Sample Number:', total_iteration)
 print('Val Sample Number:', val_loader)
 
-losses = {}
+tri_loss = {}
 val_loss = {}
 # 开始迭代
 for epoch in range(cfg.max_epoch):
@@ -145,14 +154,14 @@ for epoch in range(cfg.max_epoch):
             masks = None
 
         # 2 major losses
-        losses['depth_consistency'] = loss_depth_consistency(
+        tri_loss['depth_consistency'] = loss_depth_consistency(
             depth_t0_multi_scale, depth_t1_multi_scale, pose=pose, img_src=img0, img_tgt=img1,
             multi_scale=4, intrinsics=intrinsics, intrinsics_inv=intrinsics_inv, mask=masks)
 
-        losses['flow_consistency'] = loss_flow_consistency(
+        tri_loss['flow_consistency'] = loss_flow_consistency(
             flows, img0, img1, multi_scale=4)
 
-        total_loss = loss_sum(losses)
+        total_loss = loss_sum(tri_loss)
         process.set_description("Epoch {}, Iter {}, Current Loss:{:.8f} ".format(
             epoch+1, i+1, total_loss.to('cpu').item()))
 
@@ -221,33 +230,39 @@ for epoch in range(cfg.max_epoch):
             masks = None
 
         # 2 major losses
-        val_losses['depth_consistency'] = loss_depth_consistency(
+        val_loss['depth_consistency'] = loss_depth_consistency(
             depth0, depth1, pose=pose, img_src=img0, img_tgt=img1,
             multi_scale=0, intrinsics=intrinsics, intrinsics_inv=intrinsics_inv, mask=masks)
 
-        val_losses['flow_consistency'] = loss_flow_consistency(
+        val_loss['flow_consistency'] = loss_flow_consistency(
             flows, img0, img1, multi_scale=0)
 
-        val_loss = loss_sum(losses)
+        val_total_loss = loss_sum(val_loss)
         val_process.set_description(
-            "Val-Sample {}, Current Loss:{:.8f}".format(i+1, val_loss.to('cpu').item()))
+            "Val-Sample {}, Current Loss:{:.8f}".format(i+1, val_total_loss.to('cpu').item()))
 
         # scheduler.step(metrics=total_loss)
 
-        val_total_loss += val_loss.to('cpu').item()
+        val_acc_loss += val_total_loss.to('cpu').item()
 
-    val_avg_loss = val_total_loss/float(val_sample_num)
-    print('***************************************************************************')
-    print('**** Epoch {}: Time Elapse:{:.4f} Iteration:{} Average Loss:{:.6f} ****'
-        .format(epoch+1, interval, total_iteration, avg_loss))
-    print('***************************************************************************')
+    val_avg_loss = val_total_loss/val_sample_num
+    print('---------------------------------------------------------------------------')
+    print('------------------- Average Validation Loss:{:.6f} ------------------------'.format(avg_loss))
+    print('---------------------------------------------------------------------------')
     
     
     if epoch == 0:
         min_loss = avg_loss
+        min_val_loss = val_avg_loss
         continue
 
     if avg_loss < min_loss:
         min_loss = avg_loss
-        filename = '{}_epoch_{}.pt'.format(get_time(), epoch+1)
+        filename = '{}_ep{}.pt'.format(get_time(), epoch+1)
         torch.save(net.state_dict(), f=save_pth/filename)
+    
+    if val_avg_loss < min_val_loss:
+        min_val_loss = val_avg_loss
+        filename = '{}_ep{}_val.pt'.format(get_time(), epoch+1)
+        torch.save(net.state_dict(), f=save_pth/filename)
+

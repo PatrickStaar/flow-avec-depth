@@ -205,8 +205,8 @@ def loss_depth_consistency(
         img_src_warped = inverse_warp(
             img_tgt, depth_t1[0], -pose, intrinsics, intrinsics_inv)
 
-        l = loss_reconstruction(img_tgt_s, img_tgt_warped, mask[1]) + \
-            loss_reconstruction(img_src_s, img_src_warped, mask[0])
+        l = loss_reconstruction(img_tgt, img_tgt_warped, mask[0][1]) + \
+            loss_reconstruction(img_src, img_src_warped, mask[0][0])
 
         loss += l
 

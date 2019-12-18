@@ -1,3 +1,5 @@
+#-*-coding=utf8-*-
+
 
 import cfg
 from data_gen import data_generator
@@ -18,14 +20,11 @@ def get_time():
     return T.split('-')
 
 
-# 数据预处理
 t = Compose([
+    Scale(384,1280),
     ArrayToTensor(),
     Normalize(mean=cfg.mean, std=cfg.std),
 ])
-
-print('composed transform')
-
 # 定义数据集
 testset = data_generator(
     root=cfg.dataset_path,
@@ -34,7 +33,6 @@ testset = data_generator(
     format=cfg.dataset,
     shuffle=False,
     train=False
-
 )
 
 # 定义生成器
@@ -42,7 +40,7 @@ test_loader = DataLoader(
     testset,
     batch_size=1,
     shuffle=False,
-    pin_memory=True,  # 锁页内存
+    pin_memory=False,  # 锁页内存
 )
 
 
@@ -78,7 +76,6 @@ net.eval()
 # 是否导入预训练
 net.load_state_dict(torch.load(cfg.weight_for_test))
 
-# 启动summary
 global_steps = 0
 outcome = []
 
@@ -114,32 +111,36 @@ for i, (img0, img1, intrinsics, intrinsics_inv) in enumerate(test_loader):
     
     outcome.append((forward_warped, backward_warped, img0, img1))
 
-    cv2.imwrite(cfg.test_tmp/'{}_img0.jpg'.format(i),
+    img0 = cv2.cvtColor(img0,cv2.COLOR_RGB2BGR)
+    img1 = cv2.cvtColor(img1,cv2.COLOR_RGB2BGR)
+    forward_warped = cv2.cvtColor(forward_warped,cv2.COLOR_RGB2BGR)
+
+    cv2.imwrite(cfg.test_tmp/'{}_img00.jpg'.format(i),
                     np.uint8(img0*255))
-    cv2.imwrite(cfg.test_tmp/'{}_img1.jpg'.format(i),
+    cv2.imwrite(cfg.test_tmp/'{}_img02.jpg'.format(i),
                     np.uint8(img1*255))
 
-    cv2.imwrite(cfg.test_tmp/'{}_forward.jpg'.format(i),
+    cv2.imwrite(cfg.test_tmp/'{}_img01.jpg'.format(i),
                     np.uint8(forward_warped*255))
-    cv2.imwrite(cfg.test_tmp/'{}_backward.jpg'.format(i),
-                    np.uint8(backward_warped*255))
+    # cv2.imwrite(cfg.test_tmp/'{}_backward.jpg'.format(i),
+    #                 np.uint8(backward_warped*255))
 
-fig=plt.Figure()
-for warped, inverse_warped, img0, img1 in outcome:
-    i0=plt.subplot(221)
-    i0.set_title('warped')
-    i0.imshow(warped)
+# fig=plt.Figure()
+# for warped, inverse_warped, img0, img1 in outcome:
+#     i0=plt.subplot(221)
+#     i0.set_title('warped')
+#     i0.imshow(warped)
 
-    i1=plt.subplot(222)
-    i1.set_title('target')
-    i1.imshow(img1)
+#     i1=plt.subplot(222)
+#     i1.set_title('target')
+#     i1.imshow(img1)
 
-    i2=plt.subplot(223)
-    i2.set_title('inverse_warped')
-    i2.imshow(inverse_warped)
+#     i2=plt.subplot(223)
+#     i2.set_title('inverse_warped')
+#     i2.imshow(inverse_warped)
 
-    i2=plt.subplot(224)
-    i2.set_title('source')
-    i2.imshow(img0)
+#     i2=plt.subplot(224)
+#     i2.set_title('source')
+#     i2.imshow(img0)
 
-    plt.show()
+#     plt.show()

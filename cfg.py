@@ -8,8 +8,8 @@ dataset_root=Path('./dataset')
 dataset='kitti'
 dataset_path=dataset_root/dataset
 batch_size=2
-sequence_len=0
-max_interval=2
+sequence_len=10
+max_interval=1
 rigid=False
 
 # image
@@ -51,7 +51,7 @@ reconstruction_weights=[1.,1.,0.1]
 # test
 
 test_tmp = Path('./tmp')
-weight_for_test = save_pth/'12.03.22.51.17_epoch_95.pt'
+weight_for_test = save_pth/'12.16.09.25.48_ep22_val.pt'
 
 # log
 

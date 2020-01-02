@@ -215,8 +215,8 @@ def flow_warp(img, flow, padding_mode='zeros'):
     # Y = 2*(Y/(h-1.0) - 0.5)
 
     # u,v as relative movement
-    X = 2*(grid_x/(w-1.0) - 0.5) + u
-    Y = 2*(grid_y/(h-1.0) - 0.5) + v
+    X = 2*(grid_x/(w-1.0) + u - 0.5)
+    Y = 2*(grid_y/(h-1.0) + v - 0.5)
     
     grid_tf = torch.stack((X, Y), dim=3)
     img_tf = torch.nn.functional.grid_sample(

@@ -23,20 +23,23 @@ def gradient(pred):
     return dx, dy
 
 
-def loss_reconstruction(img_tgt, img_warped, mask=None):
+def loss_reconstruction(img_tgt, img_warped, mask=None, apply_valid=False):
 
     B, _, H, W = img_warped.size()
+    valid_loss=0
     # create valid mask of
-    valid_mask = 1 - (img_warped == 0).\
+    if apply_valid:
+        valid_mask = 1 - (img_warped == 0).\
                     prod(1, keepdim=True).type_as(img_warped)
 
-    if mask is not None:
-        valid_mask = valid_mask*mask
+        if mask is not None:
+            valid_mask = valid_mask*mask
     # to make sure the valid mask won't be all zeros
-    img_warped = img_warped*valid_mask
-    img_tgt = img_tgt*valid_mask
+        img_warped = img_warped*valid_mask
+        img_tgt = img_tgt*valid_mask
 
-    valid_loss = 1 - valid_mask.sum()/valid_mask.nelement()
+        valid_loss = 1 - valid_mask.sum()/valid_mask.nelement()
+    
     ssim_loss = 1-ssim(img_warped, img_tgt)
     l2_loss = l2_norm(img_warped-img_tgt)
 
@@ -47,17 +50,19 @@ def loss_reconstruction(img_tgt, img_warped, mask=None):
 
 
 # edge-aware smoothness loss
-def loss_smooth(depth):
+
+def loss_smoothness(outputs):
     loss = 0.
-    for i, d in enumerate(depth):
-        dx, dy = gradient(d)
+    for i, output in enumerate(outputs):
+        output = torch.unsqueeze(output,dim=1)
+        dx, dy = gradient(output)
         dx2, dxdy = gradient(dx)
         dydx, dy2 = gradient(dy)
         loss += ((dx2.abs().mean() +
                   dxdy.abs().mean() +
                   dydx.abs().mean() +
                   dy2.abs().mean()) *
-                 multi_scale_weights[i])
+                  multi_scale_weights[i])
     return loss
 
 
@@ -111,37 +116,6 @@ def multi_scale_mask(multi_scale, depth, pose, flow, intrinsics, intrinsics_inv)
 
 
 # unsupervised loss
-# forward-backward consistency loss
-# def loss_flow_consistency(forward, backward, img_src, img_tgt, multi_scale=0):
-
-#     def flow_consistency(forward, backward):
-#         return l2_norm(-forward-backward)
-
-#     losses = []
-#     if multi_scale > 0:
-#         for s in range(multi_scale):
-#             B, _, H, W = forward[s].size()
-#             img_src_s = torch.nn.functional.adaptive_avg_pool2d(
-#                 img_src, (H, W))
-#             img_tgt_s = torch.nn.functional.adaptive_avg_pool2d(
-#                 img_tgt, (H, W))
-
-#             img_tgt_warped = flow_warp(img_src_s, forward[s])
-#             img_src_warped = flow_warp(img_tgt_s, backward[s])
-#             losses.append(
-#                 loss_reconstruction(img_tgt_s, img_tgt_warped) +
-#                 loss_reconstruction(img_src_s, img_src_warped) +
-#                 flow_consistency(forward[s], backward[s]))
-#     else:
-#         losses.append(loss_reconstruction(img_tgt, flow_warp(img_src, forward)) +
-#                       loss_reconstruction(img_src, flow_warp(img_tgt, backward)))
-#     loss = 0
-#     for i in range(len(losses)):
-#         loss += losses[i]*multi_scale_weights[i]
-
-#     return loss
-
-
 def loss_flow_consistency(flow, img_src, img_tgt, multi_scale=0):
 
     loss = 0.
@@ -173,7 +147,7 @@ def loss_depth_consistency(
         origine = img_src.size()[-1]
         for s in range(multi_scale):
             _, H, W = depth_t0[s].size()
-            ratio = origine/W
+            ratio = float(origine)/W
 
             img_src_s = torch.nn.functional.adaptive_avg_pool2d(
                 img_src, (H, W))
@@ -205,8 +179,12 @@ def loss_depth_consistency(
         img_src_warped = inverse_warp(
             img_tgt, depth_t1[0], -pose, intrinsics, intrinsics_inv)
 
-        l = loss_reconstruction(img_tgt, img_tgt_warped, mask[0][1]) + \
-            loss_reconstruction(img_src, img_src_warped, mask[0][0])
+        if mask is not None:
+            l = loss_reconstruction(img_tgt, img_tgt_warped, mask[0][1]) + \
+                loss_reconstruction(img_src, img_src_warped, mask[0][0])
+        else:
+            l = loss_reconstruction(img_tgt, img_tgt_warped) +\
+                loss_reconstruction(img_src, img_src_warped)
 
         loss += l
 

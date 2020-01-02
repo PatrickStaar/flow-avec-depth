@@ -8,7 +8,7 @@ import time
 from model import PDF
 from geometrics import inverse_warp, flow_warp, pose2flow, mask_gen, pose_vec2mat
 from losses import *
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 from tqdm import tqdm
 
 
@@ -33,11 +33,9 @@ def train(net, dataloader, device, optimizer):
 
         flows_backward = [-f for f in flows]
 
-        depth_t0_multi_scale = [d[:, 0] for d in depth_maps]
-        depth_t1_multi_scale = [d[:, 1] for d in depth_maps]
-
-        # flow_t0_multi_scale = [f[:, 0] for f in flows]
-        # flow_t1_multi_scale = [f[:, 1] for f in flows]
+        depth_t0_multi_scale = [1./(d[:, 0]+cfg.eps) for d in depth_maps]
+        depth_t1_multi_scale = [1./(d[:, 1]+cfg.eps) for d in depth_maps]
+        
 
         # generate multi scale mask, including forward and backward masks
         if not cfg.rigid:
@@ -50,14 +48,19 @@ def train(net, dataloader, device, optimizer):
             masks = None
 
         # 2 major losses
-        tri_loss['depth_consistency'] = loss_depth_consistency(
+        train_loss['depth_consistency'] = loss_depth_consistency(
             depth_t0_multi_scale, depth_t1_multi_scale, pose=pose, img_src=img0, img_tgt=img1,
             multi_scale=4, intrinsics=intrinsics, intrinsics_inv=intrinsics_inv, mask=masks)
 
-        tri_loss['flow_consistency'] = loss_flow_consistency(
+        train_loss['flow_consistency'] = loss_flow_consistency(
             flows, img0, img1, multi_scale=4)
 
-        total_loss = loss_sum(tri_loss)
+        # smoothness
+        train_loss['depth_smoothness'] = loss_smoothness(depth_t0_multi_scale)+\
+                                        loss_smoothness(depth_t1_multi_scale)
+        # train_loss['flow_smoothness'] = loss_smoothness(flows)
+
+        total_loss = loss_sum(train_loss)
         process.set_description("Epoch {} Iter {} Loss:{:.6f} ".format(
             epoch+1, i+1, total_loss.to('cpu').item()))
 
@@ -107,8 +110,8 @@ def eval(net, dataloader, device):
 
         flow_backward = [-f for f in flow]
 
-        depth0 = [d[:, 0] for d in depthmap]
-        depth1 = [d[:, 1] for d in depthmap]
+        depth0 = [1./(d[:, 0]+cfg.eps) for d in depthmap]
+        depth1 = [1./(d[:, 1]+cfg.eps) for d in depthmap]
 
         # generate multi scale mask, including forward and backward masks
         if not cfg.rigid:
@@ -196,7 +199,7 @@ val_loader = DataLoader(
 
 print('defined data_loader')
 # 定义summary
-train_writer = SummaryWriter(cfg.log)
+# train_writer = SummaryWriter(cfg.log)
 output_writer = []
 
 # 设置随机数种子
@@ -232,21 +235,22 @@ else:
 weights = net.parameters()
 opt = torch.optim.Adam(weights, lr=cfg.lr)
 # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
-log = open(cfg.log/(get_time()+'.txt'),'w')
+logfile=cfg.log/(get_time()+'.txt')
 # 启动summary
 global_steps = 0
 print('Batch Size:', cfg.batch_size)
 print('Sample Number:', len(train_loader))
 print('Val Sample Number:', len(val_loader))
+with open(logfile,'w') as log:
+    print('Batch Size:', cfg.batch_size,file=log)
+    print('Sample Number:', len(train_loader),file=log)
+    print('Val Sample Number:', len(val_loader),file=log)
 
-print('Batch Size:', cfg.batch_size,file=log)
-print('Sample Number:', len(train_loader),file=log)
-print('Val Sample Number:', len(val_loader),file=log)
-
-tri_loss = {}
+train_loss = {}
 val_loss = {}
 # 开始迭代
 try:
+    log = open(logfile, 'w')
     for epoch in range(cfg.max_epoch):
         # set to train mode
 
@@ -261,7 +265,7 @@ try:
         if train_avg_loss < min_loss:
             min_loss = train_avg_loss
             filename = '{}_ep{}.pt'.format(get_time(), epoch+1)
-            # torch.save(net.state_dict(), f=save_pth/filename)
+            torch.save(net.state_dict(), f=save_pth/filename)
         
         if eval_avg_loss < min_val_loss:
             min_val_loss = eval_avg_loss
@@ -270,6 +274,8 @@ try:
 
         print('EP {} training loss:{:.6f} min:{:.6f}'.format(epoch,train_avg_loss,min_loss),file=log)
         print('EP {} validation loss:{:.6f} min:{:.6f}'.format(epoch,eval_avg_loss,min_val_loss),file=log)
+    
+    log.close()
         
 except:
     print('****Exception****', file = log)

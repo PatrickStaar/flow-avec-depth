@@ -8,15 +8,16 @@ dataset_root=Path('./dataset')
 dataset='kitti'
 dataset_path=dataset_root/dataset
 batch_size=2
-sequence_len=10
+sequence_len=0
 max_interval=1
-rigid=False
+rigid=True
 
 # image
 # unsure
 mean=[0.5,0.5,0.5]
 std = [0.5,0.5,0.5]
 image_size=[]
+eps=1e-5
 
 # intrinsics
 fixed_intrinsics=dataset_path/'cam.txt'
@@ -26,22 +27,23 @@ save_pth=Path('./checkpoints')
 log=Path('./log')
 
 # model
-pretrain=False
-pretrained_weights=save_pth/'12.03.22.51.17_epoch_95.pt'
+pretrain=True
+pretrained_weights=save_pth/'12.16.09.25.48_ep22_val.pt'
 
 # optimizer
-max_epoch=100
-lr = 0.0001
+max_epoch=50
+lr = 0.001
 steps=100
 
 # losses
 loss_weight={
-    'depth_consistency':0.,
-    'flow_consistency':1.,
+    'depth_consistency':1.,
+    'flow_consistency':0.,
     'depth_supervise':0,
     'flow_supervise':0,
     'pose_supervise':0,
-    'smoothness':0.5,
+    'depth_smoothness':0.,
+    'flow_smoothness':0.,
 }
 
 multi_scale_weight=[1.,1.,1.,1.]

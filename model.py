@@ -136,18 +136,22 @@ class PDF(nn.Module):
         d = self.conv1x1_2(cat([d, x3]))
         d = self.deconv_depth.layer_2(d)  # 256->128
         d2 = self.output2_depth(d)
+        d2 = F.relu(d2)
 
         d = self.conv1x1_3(cat([d, x2]))
         d = self.deconv_depth.layer_3(cat([d, d2]))  # 128->64
         d3 = self.output3_depth(d)
+        d3 = F.relu(d3)
 
         d = self.conv1x1_4(cat([d, x1]))
         d = self.deconv_depth.layer_4(cat([d, d3]))  # 64->32
         d4 = self.output4_depth(d)
+        d4 = F.relu(d4)
 
         d = self.conv1x1_5(cat([d, x]))
         d = self.deconv_depth.layer_5(cat([d, d4]))  # 32->16
         d5 = self.output5_depth(d)
+        d5 = F.relu(d5)
 
         # Pose Part
         p = self.pose_estmation(x4)
@@ -212,7 +216,7 @@ class PDF(nn.Module):
 
         if stride != 1 or inchannels != channels * block.expansion:
             downsample =nn.Sequential(
-                conv(inchannels, channels * block.expansion, 1, stride, padding=0,output=True,activation='relu'),
+                conv(inchannels, channels * block.expansion, 1, stride, padding=0,output=True),
                 nn.BatchNorm2d(channels * block.expansion),
             )
 

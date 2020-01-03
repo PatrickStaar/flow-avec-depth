@@ -56,9 +56,9 @@ def train(net, dataloader, device, optimizer):
             flows, img0, img1, multi_scale=4)
 
         # smoothness
-        train_loss['depth_smoothness'] = loss_smoothness(depth_t0_multi_scale)+\
-                                        loss_smoothness(depth_t1_multi_scale)
-        # train_loss['flow_smoothness'] = loss_smoothness(flows)
+        # train_loss['depth_smoothness'] = loss_smoothness(depth_t0_multi_scale)+\
+        #                                 loss_smoothness(depth_t1_multi_scale)
+        train_loss['flow_smoothness'] = loss_smoothness(flows)
 
         total_loss = loss_sum(train_loss)
         process.set_description("Epoch {} Iter {} Loss:{:.6f} ".format(

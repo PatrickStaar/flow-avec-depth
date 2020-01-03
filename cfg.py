@@ -32,18 +32,18 @@ pretrained_weights=save_pth/'12.16.09.25.48_ep22_val.pt'
 
 # optimizer
 max_epoch=50
-lr = 0.001
+lr = 0.0001
 steps=100
 
 # losses
 loss_weight={
-    'depth_consistency':1.,
-    'flow_consistency':0.,
+    'depth_consistency':0.,
+    'flow_consistency':1.,
     'depth_supervise':0,
     'flow_supervise':0,
     'pose_supervise':0,
     'depth_smoothness':0.,
-    'flow_smoothness':0.,
+    'flow_smoothness':0.1,
 }
 
 multi_scale_weight=[1.,1.,1.,1.]

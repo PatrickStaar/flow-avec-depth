@@ -47,7 +47,8 @@ class NormalizeLocally(object):
 
 
 class ArrayToTensor(object):
-    """Converts a list of numpy.ndarray (H x W x C) along with a intrinsics matrix to a list of torch.FloatTensor of shape (C x H x W) with a intrinsics tensor."""
+    """Converts a list of numpy.ndarray (H x W x C) along with a intrinsics matrix
+     to a list of torch.FloatTensor of shape (C x H x W) with a intrinsics tensor."""
 
     def __call__(self, images, intrinsics):
         tensors = []
@@ -55,9 +56,7 @@ class ArrayToTensor(object):
             # put it from HWC to CHW format
             im = np.transpose(im, (2, 0, 1))
             # handle numpy array
-            tensors.append(torch.from_numpy(im).float()/255)
-        
-            
+            tensors.append(torch.from_numpy(im).float()/255)          
         return tensors, torch.from_numpy(intrinsics)
 
 

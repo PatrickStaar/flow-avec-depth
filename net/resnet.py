@@ -228,8 +228,7 @@ def _resnet(arch, block, layers, pretrained, progress, input_channels, **kwargs)
 
 
 def resnet50(input_channels=3,pretrained=False, progress=True, **kwargs):
-    return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,input_channels
-                   **kwargs)
+    return _resnet('resnet50', BasicBlock, [3, 4, 6, 3], pretrained, progress,input_channels,**kwargs)
 
 
 def resnext50_32x4d(input_channels=3, pretrained=False, progress=True, **kwargs):

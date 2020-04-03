@@ -9,12 +9,12 @@ from .utils import *
 
 ## main model
 class PDF(nn.Module):
-    def __init__(self,**kwargs):
+    def __init__(self,use_depth,use_flow,use_pose,**kwargs):
         super(PDF, self).__init__()
         self.use_depth=use_depth
         self.use_flow=use_flow
         self.use_pose=use_pose
-        self.encoder = resnet50(input_channels=6,)
+        self.encoder = resnet50(input_channels=6,no_top=True)
         
         if self.use_depth:
             self.depth_net = Depth()
@@ -24,10 +24,12 @@ class PDF(nn.Module):
             self.pose_net = Pose()
 
     def forward(self, inputs):
-        x = cat(inputs)
+        
         depth_map=None
         flowmap=None
         pose=None
+
+        x = cat(inputs)
         features=self.encoder(x)
         if self.use_depth:
             depth_map = self.depth_net(features)
@@ -39,9 +41,12 @@ class PDF(nn.Module):
         if self.training:
             return depth_map, pose, flow_map
         else:
-            return depth_map[0], pose, flow_map[-1]
+            # TODO:there is a conflict when some modules are not used
+            # got to fix it
+            return depth_map[0], pose, flow_map[0]
 
     def init_weights(self):
+        # TODO: the initialization is to be completed
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d)\
             or isinstance(m, nn.Linear):

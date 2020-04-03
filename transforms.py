@@ -2,7 +2,8 @@ from __future__ import division
 import torch
 import random
 import numpy as np
-from scipy.misc import imresize, imrotate
+# from cv2 import imresize, imrotate
+import cv2
 
 
 '''Set of tranform random routines that takes list of inputs as arguments,
@@ -84,13 +85,10 @@ class Scale(object):
 
     def __call__(self, images, intrinsics):
         assert intrinsics is not None
-        output_intrinsics = np.copy(intrinsics)
-
         in_h, in_w, _ = images[0].shape
-        scaled_h, scaled_w = self.h , self.w
 
-        output_intrinsics[0] *= (scaled_w / in_w)
-        output_intrinsics[1] *= (scaled_h / in_h)
-        scaled_images = [imresize(im, (scaled_h, scaled_w)) for im in images]
+        intrinsics[0] *= (self.w / in_w)
+        intrinsics[1] *= (self.h / in_h)
+        scaled_images = [cv2.resize(im, (self.w, self.h),interpolation=cv2.INTER_CUBIC) for im in images]
 
-        return scaled_images, output_intrinsics
+        return scaled_images, intrinsics

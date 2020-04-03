@@ -1,7 +1,6 @@
 from torch import nn
 import torch.nn.functional as F
 import torchvision
-from resnet import resnet50
 from collections import OrderedDict
 from .utils import *
 

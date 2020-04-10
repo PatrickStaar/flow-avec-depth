@@ -262,11 +262,11 @@ def pose2flow(depth, pose, intrinsics, intrinsics_inv, rotation_mode='euler', pa
 
 
 # generate flow difference  mask
-def mask_gen(flow, rigid_flow):
-    
-    dist=torch.norm(flow-rigid_flow,dim=1,keepdim=True) # [B,2,H,W]->[B,H,W]
-    mask=torch.exp(-dist)
-    return mask
+def mask_gen(depth,pose,flow, intrinsics, intrinsics_inv):
+    flow_rigid = pose2flow(depth, pose, intrinsics, intrinsics_inv)
+    # [B,2,H,W]->[B,H,W]
+    dist=torch.norm(flow-flow_rigid,dim=1,keepdim=True) 
+    return torch.exp(-dist)
 
 
 # combine the reconstruction from rigid scene and real scene flow

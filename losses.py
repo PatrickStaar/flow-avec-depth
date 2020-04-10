@@ -4,41 +4,30 @@ from ssim import ssim
 from geometrics import flow_warp, inverse_warp, pose2flow, mask_gen
 
 
-def l1_norm(x):
-    x = x.abs()
-    return x.mean()
-
-
-def l2_norm(x):
-    x = x.norm(dim=1)
-    return x.mean()
-
-
 def gradient(pred):
-    dy = torch.abs(pred[:, :, :-1, :] - pred[:, :, 1:, :])
-    dx = torch.abs(pred[:, :, :, -1:] - pred[:, :, :, 1:])
+    dy = torch.abs(pred[..., :-1, :] - pred[..., 1:, :])
+    dx = torch.abs(pred[..., :, -1:] - pred[..., :, 1:])
     return dx, dy
-
 
 def upsample(src, shape):
     return F.interpolate(src, shape, mode="bilinear")
 
 
-def multi_scale_mask(multi_scale, depth, pose, flow, intrinsics, intrinsics_inv):
-    masks = []
-    d_t0, d_t1 = depth
-    f_forward, f_backward = flow
+# def mask(multi_scale, depth, pose, flow, intrinsics, intrinsics_inv):
+#     masks = []
+#     d_t0, d_t1 = depth
+#     f_forward, f_backward = flow
 
-    for s in range(multi_scale):
-        flow_rigid_foward = pose2flow(
-            d_t0[s], pose, intrinsics, intrinsics_inv)
-        flow_rigid_backward = pose2flow(
-            d_t1[s], -pose, intrinsics, intrinsics_inv)
+#     for s in range(multi_scale):
+#         flow_rigid_foward = pose2flow(
+#             d_t0[s], pose, intrinsics, intrinsics_inv)
+#         flow_rigid_backward = pose2flow(
+#             d_t1[s], -pose, intrinsics, intrinsics_inv)
 
-        mask0 = mask_gen(f_forward[s], flow_rigid_foward)
-        mask1 = mask_gen(f_backward[s], flow_rigid_backward)
-        masks.append((mask0, mask1))
-    return masks
+#         mask = mask_gen(f_forward[s], flow_rigid_foward)
+#         # mask1 = mask_gen(f_backward[s], flow_rigid_backward)
+#         masks.append((mask0, mask1))
+#     return masks
 
 
 def summerize(pred, target, cfg):
@@ -50,39 +39,39 @@ def summerize(pred, target, cfg):
         depth_smo=0.,
         # disc=0.,
     )
-    weights=cfg['weights']
+    weights = cfg['weights']
     B, _, H, W = target['img_src'].size()
-
 
     for scale in range(len(weights['multi_scale'])):
         scale_weight = weights['multi_scale'][scale]
         if cfg['use_depth']:
-            depthmap = pred['depthmap'][scale]
-            depthmap = upsample(depthmap, (H, W))
+            depthmap = upsample(pred['depthmap'][scale], (H, W))
+            depthmap.squeeze_(dim=1)
             pose = pred['pose']
             loss_dict['reprojection_loss'] += loss_reprojection(
-                depthmap, pose, 
+                depthmap, pose,
                 target['img_src'],
                 target['img_tgt'],
-                target['intrinsics'], 
+                target['intrinsics'],
                 target['intrinsics_inv'],
+                mask=pred['mask'],
                 weights=weights)*scale_weight
 
             loss_dict['depth_smo'] += loss_smo(
                 depthmap, target['img_src'])*scale_weight
-        
+
         if cfg['use_flow']:
             flowmap = upsample(pred['flowmap'][scale], (H, W))
             loss_dict['flow_consistency'] += loss_flow_consistency(
-                flowmap, 
-                target['img_src'], 
+                flowmap,
+                target['img_src'],
                 target['img_tgt'],
                 weights=weights)*scale_weight
-        
+
             loss_dict['flow_smo'] += loss_smo(
                 flowmap, target['img_src'],
-                )*scale_weight
-        
+            )*scale_weight
+
         if cfg['use_disc']:
             pass
 
@@ -98,27 +87,27 @@ def loss_reconstruction(img_tgt, img_warped, weights, mask=None):
         img_tgt = img_tgt*mask
         img_warped = img_warped*mask
     ssim_value = 1-ssim(img_warped, img_tgt)
-    l1 = l1_norm(img_warped-img_tgt)
+    l1 = F.l1_loss(img_warped, img_tgt)
     return ssim_value * weights['ssim'] + l1 * weights['l1']
 
 
 def loss_reprojection(depth, pose, img_src, img_tgt,
-    intrinsics, intrinsics_inv, weights, mask=None,):
-    B, _, H, W = depth.size()
-    depth = torch.squeeze(depth, dim=1)
+                      intrinsics, intrinsics_inv, weights, mask=None,):
+    # B,_, H, W = depth.size()
+    # depth = torch.squeeze(depth, dim=1)
     img_tgt_warped = inverse_warp(
         img_src, depth, pose, intrinsics, intrinsics_inv)
     return loss_reconstruction(img_tgt, img_tgt_warped, weights, mask)
 
 
 def loss_flow_consistency(flow, img_src, img_tgt, weights):
-    B, _, H, W = flow.size()
+    # B, _, H, W = flow.size()
     img_warped = flow_warp(img_src, flow)
     return loss_reconstruction(img_tgt, img_warped, weights)
 
 
 def loss_smo(tgt, img):
-    B, _, H, W = tgt.size()
+    # B, _, H, W = tgt.size()
     grad_target_x, grad_target_y = gradient(tgt)
     grad_image_x, grad_image_y = gradient(img)
     grad_image_x = torch.mean(grad_image_x, 1, keepdim=True)
@@ -132,7 +121,7 @@ def loss_smo(tgt, img):
 def loss_depth(gt, pred):
     # B, _, H, W = p.size()
     # gt = torch.nn.functional.adaptive_avg_pool2d(gt, (H, W))
-    loss = l1_norm(gt-pred)
+    loss = F.l1_loss(pred,gt)
     return loss
 
 
@@ -145,12 +134,12 @@ def loss_flow(gt, pred):
     # mind the scale
     u_pred = pred[:, 0, :, :] * (w_gt/w_pred)
     v_pred = pred[:, 1, :, :] * (h_gt/h_pred)
-    dist = l1_norm(u_gt - u_pred) + l1_norm(v_gt - v_pred)
+    dist = F.l1_loss(u_pred,u_gt) + F.l1_loss(v_pred,v_gt)
     return dist
 
 
 def loss_pose(gt, pred):         # [B,6]
-    return l1_norm(gt-pred)
+    return F.l1_loss(pred,gt)
 
 
 def evaluate(gt, pred):

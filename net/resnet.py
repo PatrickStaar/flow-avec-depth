@@ -154,7 +154,7 @@ class ResNet(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         
         self.fc = nn.Linear(512 * block.expansion, num_classes)
-        self.features=[]# save multi-scale features
+        # save multi-scale features
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -201,14 +201,12 @@ class ResNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        self.features.append(x)
         f = self.maxpool(x)
 
         f1 = self.layer1(f)
         f2 = self.layer2(f1)
         f3 = self.layer3(f2)
         f4 = self.layer4(f3)
-        self.features.extend([f1,f2,f3,f4])
 
         if not self.no_top:
             y = self.avgpool(f4)
@@ -216,19 +214,20 @@ class ResNet(nn.Module):
             y = self.fc(y)
             return y
         else:
-            return self.features
+            return [x,f1,f2,f3,f4]
 
 
-def _resnet(arch, block, layers, pretrained, progress, input_channels, **kwargs):
+def _resnet(arch, block, layers, pretrained, progress, input_channels, pretrain_encoder, **kwargs):
     model = ResNet(block, layers,input_channels=input_channels, **kwargs)
     if pretrained:
-        state_dict = load_state_dict_from_url(model_urls[arch],progress=progress)
-        model.load_state_dict(state_dict)
+        # state_dict = load_state_dict_from_url(pretrain_encoder,progress=progress)
+        state_dict = torch.load(pretrain_encoder)
+        model.load_state_dict(state_dict,strict=False)
     return model
 
 
-def resnet50(input_channels=3,pretrained=False, progress=True, **kwargs):
-    return _resnet('resnet50', BasicBlock, [3, 4, 6, 3], pretrained, progress,input_channels,**kwargs)
+def resnet50(input_channels=3,pretrained=False, progress=True, pretrain_encoder='',**kwargs):
+    return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,input_channels,pretrain_encoder,**kwargs)
 
 
 def resnext50_32x4d(input_channels=3, pretrained=False, progress=True, **kwargs):

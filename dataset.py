@@ -1,8 +1,7 @@
 import random
 import numpy as np
-import skimage
 import torch
-from skimage import io
+from skimage import io, transform
 import cv2
 from path import Path
 from torch.utils.data import Dataset
@@ -58,7 +57,7 @@ class Kitti(Dataset):
         inputs['images']=imgs
 
         if self.with_depth:
-            inputs['depth_gt']=self.get_depth()
+            inputs['depth_gt']=self.get_depth(folder,frame_id,side)
         if self.with_flow:
             inputs['flow_gt']=self.get_flow()
         if self.with_pose:
@@ -79,10 +78,9 @@ class Kitti(Dataset):
             scene,
             "velodyne_points/data/{:010d}.bin".format(int(frame_id)))
         depth_gt = generate_depth_map(calid_dir, velo_file, self.cast[side])
-        depth_gt = skimage.transform.resize(
+        depth_gt = transform.resize(
             depth_gt, (self.H,self.W), order=0, preserve_range=True, mode='constant')
-        depth=torch.from_numpy(depth)
-        return depth
+        return torch.from_numpy(depth_gt)
 
     def get_flow(self,scene,frame_id,side):
         raise NotImplementedError

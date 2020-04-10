@@ -9,12 +9,16 @@ from .utils import *
 
 ## main model
 class PDF(nn.Module):
-    def __init__(self,use_depth,use_flow,use_pose,**kwargs):
+    def __init__(self,use_depth,use_flow,use_pose,pretrain_encoder,**kwargs):
         super(PDF, self).__init__()
         self.use_depth=use_depth
         self.use_flow=use_flow
         self.use_pose=use_pose
-        self.encoder = resnet50(input_channels=6,no_top=True)
+        self.encoder = resnet50(
+            input_channels=6,
+            no_top=True,
+            pretrained=True,
+            pretrain_encoder=pretrain_encoder)
         
         if self.use_depth:
             self.depth_net = Depth()
@@ -46,16 +50,50 @@ class PDF(nn.Module):
             return depth_map[0], pose, flow_map[0]
 
     def init_weights(self):
-        # TODO: the initialization is to be completed
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d)\
-            or isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
+        if self.use_depth:
+            for m in self.depth_net.modules():
+                if  isinstance(m, nn.Conv2d) or \
+                    isinstance(m, nn.ConvTranspose2d) or \
+                    isinstance(m, nn.Linear):
+                    nn.init.xavier_uniform_(m.weight)
+                    if m.bias is not None:
+                        nn.init.constant_(m.bias, 0)
+                elif isinstance(m, nn.BatchNorm2d):
+                    nn.init.constant_(m.weight, 1)
                     nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+        if self.use_flow:
+            for m in self.flow_net.modules():
+                if  isinstance(m, nn.Conv2d) or \
+                    isinstance(m, nn.ConvTranspose2d) or \
+                    isinstance(m, nn.Linear):
+                    nn.init.xavier_uniform_(m.weight)
+                    if m.bias is not None:
+                        nn.init.constant_(m.bias, 0)
+                elif isinstance(m, nn.BatchNorm2d):
+                    nn.init.constant_(m.weight, 1)
+                    nn.init.constant_(m.bias, 0)
+        if self.use_pose:
+            for m in self.pose_net.modules():
+                if  isinstance(m, nn.Conv2d) or \
+                    isinstance(m, nn.ConvTranspose2d) or \
+                    isinstance(m, nn.Linear):
+                    nn.init.xavier_uniform_(m.weight)
+                    if m.bias is not None:
+                        nn.init.constant_(m.bias, 0)
+                elif isinstance(m, nn.BatchNorm2d):
+                    nn.init.constant_(m.weight, 1)
+                    nn.init.constant_(m.bias, 0)
+        
+        # TODO: the initialization is to be completed
+        # for m in self.modules():
+        #     if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d)\
+        #     or isinstance(m, nn.Linear):
+        #         nn.init.xavier_uniform_(m.weight)
+        #         if m.bias is not None:
+        #             nn.init.constant_(m.bias, 0)
+        #     elif isinstance(m, nn.BatchNorm2d):
+        #         nn.init.constant_(m.weight, 1)
+        #         nn.init.constant_(m.bias, 0)
 
         # for m in self.modules():
         #     if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):

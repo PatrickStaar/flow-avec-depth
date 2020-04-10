@@ -11,17 +11,17 @@ class Pose(nn.Module):
         super(Pose, self).__init__()
         
         self.conv_block = nn.Sequential(
-            conv(512, 512,activation='relu'),
-            conv(512, 512,activation='relu'),
+            conv(2048, 1024,activation='relu'),
+            conv(1024, 512,activation='relu'),
             # conv(256, 128,activation='relu'),
         )
         self.adaptive_pooling = nn.AdaptiveMaxPool2d(1)
         self.fc = nn.Sequential(
             nn.Linear(512, 512),
             nn.LeakyReLU(0.1,inplace=True),
-            nn.Linear(512, 256),
+            nn.Linear(512, 512),
             nn.LeakyReLU(0.1,inplace=True),
-            nn.Linear(256, 6)
+            nn.Linear(512, 6)
         )
 
     def forward(self, features):

@@ -10,8 +10,9 @@ class Depth(nn.Module):
 
         super(Depth, self).__init__()
         
-        conv_channels = [64, 64, 128, 256, 512]
-        deconv_channels = [512, 256, 128, 64, 32, 16]
+        conv_channels = [64, 256, 512, 1024, 2048]
+        # deconv_channels = [512, 256, 128, 64, 32, 16]
+        deconv_channels = [2048, 1024, 512, 256, 64, 32]
 
         self.decode1=deconv(deconv_channels[0],deconv_channels[1])
         self.decode2=deconv(deconv_channels[1]+1,deconv_channels[2])
@@ -19,16 +20,16 @@ class Depth(nn.Module):
         self.decode4=deconv(deconv_channels[3]+1,deconv_channels[4])
         self.decode5=deconv(deconv_channels[4]+1,deconv_channels[5])
 
-        self.conv1x1_1 = conv(512*2, 512, k=1, stride=1, padding=0)
-        self.conv1x1_2 = conv(256*2, 256, k=1, stride=1, padding=0)
-        self.conv1x1_3 = conv(128*2, 128, k=1, stride=1, padding=0)
-        self.conv1x1_4 = conv(64*2, 64, k=1, stride=1, padding=0)
-        self.conv1x1_5 = conv(64+32, 32, k=1, stride=1, padding=0)
+        self.conv1x1_1 = conv(deconv_channels[0]*2, deconv_channels[0], k=1, stride=1, padding=0)
+        self.conv1x1_2 = conv(deconv_channels[1]*2, deconv_channels[1], k=1, stride=1, padding=0)
+        self.conv1x1_3 = conv(deconv_channels[2]*2, deconv_channels[2], k=1, stride=1, padding=0)
+        self.conv1x1_4 = conv(deconv_channels[3]*2, deconv_channels[3], k=1, stride=1, padding=0)
+        self.conv1x1_5 = conv(deconv_channels[4]*2, deconv_channels[4], k=1, stride=1, padding=0)
 
         # for depth
         self.conv_block = nn.Sequential(
-            conv(512, 512, stride=1,activation='relu'),
-            conv(512, 512, stride=1,activation='relu'),
+            conv(2048, 2048, stride=1,activation='relu'),
+            # conv(512, 512, stride=1,activation='relu'),
         )
 
         self.output1 = conv(deconv_channels[1], 1, k=1, stride=1, padding=0,output=True,activation='relu')

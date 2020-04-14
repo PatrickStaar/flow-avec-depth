@@ -142,12 +142,22 @@ def loss_pose(gt, pred):         # [B,6]
     return F.l1_loss(pred,gt)
 
 
-def evaluate(gt, pred):
+def evaluate(gt, pred, cfg):
     loss_dict = {}
+    loss=0
     if gt.get('depth_gt') is not None:
-        loss_dict['depth_loss'] = loss_depth(gt['depth_gt'], pred['depthmap'])
+        loss_depth=loss_depth(gt['depth_gt'], pred['depthmap'])
+        loss_dict['depth_loss'] = loss_depth
+        loss+=loss_depth*cfg['depth_loss']
     if gt.get('flow_gt') is not None:
-        loss_dict['flow_loss'] = loss_flow(gt['flow_gt'], pred['flowmap'])
+        loss_flow=loss_flow(gt['flow_gt'], pred['flowmap'])
+        loss_dict['flow_loss'] = loss_flow
+        loss+=loss_flow*cfg['flow_loss']
     if gt.get('pose_gt') is not None:
-        loss_dict['pose_loss'] = loss_flow(gt['pose_gt'], pred['pose'])
+        loss_flow=loss_flow(gt['pose_gt'], pred['pose'])
+        loss_dict['pose_loss'] = loss_flow
+        loss+=loss_flow*cfg['pose_loss']
+
+    loss_dict['loss']=loss
+    
     return loss_dict

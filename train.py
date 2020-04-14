@@ -94,11 +94,11 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False):
         msg1+= '{}:{:.6f},'.format(k,v/len(dataloader))
     print('>> Epoch {}:{}'.format(epoch+1,msg1))
 
-    return loss_per_epoch
+    return loss_per_epoch['loss']
 
 
-def eval(net, dataloader, device):
-    loss_per_validation = 0
+def eval(net, dataloader, device, cfg):
+    loss_per_validation = defaultdict(int)
     eps=1e-4
     net.eval()
     val_process = tqdm(enumerate(dataloader))
@@ -140,12 +140,15 @@ def eval(net, dataloader, device):
         # 具体的validation loss计算的指标和输出的形式还需确定
         loss_per_iter = evaluate(pred, target)
         val_process.set_description("evaluating..., ")
-        loss_per_validation += loss_per_iter.detach_().to('cpu').item()
+        loss_per_validation=update(loss_per_validation,loss_per_iter)
+    
+    msg=''
+    for k,v in loss_per_validation.items():
+        msg+= '{}:{:.6f},'.format(k,v/len(dataloader))
 
-    loss_per_validation /= len(dataloader)
     # TODO: 验证集各项损失显示
-    print('>> Average Validation Loss:{:.6f} '.format(loss_per_validation))
-    return loss_per_validation
+    print('>> Average Validation Loss:'+msg)
+    return loss_per_validation['loss']
 
 
 if __name__ == "__main__":
@@ -207,7 +210,7 @@ if __name__ == "__main__":
     
     for epoch in range(config['max_epoch']):
         # set to train mode
-        # train_avg_loss = train(net, train_loader, device, opt, config['losses'])
+        train_avg_loss = train(net, train_loader, device, opt, config['losses'])
         eval_avg_loss = eval(net, val_loader, device,config['losses'])
 
         if train_avg_loss < min_loss:

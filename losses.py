@@ -121,6 +121,8 @@ def loss_smo(tgt, img):
 def loss_depth(gt, pred):
     # B, _, H, W = p.size()
     # gt = torch.nn.functional.adaptive_avg_pool2d(gt, (H, W))
+    pred.squeeze_(dim=1)
+    pred[gt==0]=0.0
     loss = F.l1_loss(pred,gt)
     return loss
 
@@ -144,11 +146,11 @@ def loss_pose(gt, pred):         # [B,6]
 
 def evaluate(gt, pred, cfg):
     loss_dict = {}
-    loss=0
+    loss=0.
     if gt.get('depth_gt') is not None:
-        loss_depth=loss_depth(gt['depth_gt'], pred['depthmap'])
-        loss_dict['depth_loss'] = loss_depth
-        loss+=loss_depth*cfg['depth_loss']
+        val_loss_depth=loss_depth(gt['depth_gt'], pred['depthmap'].to('cpu'))
+        loss_dict['depth_loss'] = val_loss_depth
+        loss+=val_loss_depth*cfg['depth_loss']
     if gt.get('flow_gt') is not None:
         loss_flow=loss_flow(gt['flow_gt'], pred['flowmap'])
         loss_dict['flow_loss'] = loss_flow

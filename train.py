@@ -94,7 +94,7 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False):
         msg1+= '{}:{:.6f},'.format(k,v/len(dataloader))
     print('>> Epoch {}:{}'.format(epoch+1,msg1))
 
-    return loss_per_epoch['loss']
+    return loss_per_epoch['loss']/len(dataloader)
 
 
 def eval(net, dataloader, device, cfg):
@@ -138,7 +138,7 @@ def eval(net, dataloader, device, cfg):
         )
 
         # 具体的validation loss计算的指标和输出的形式还需确定
-        loss_per_iter = evaluate(pred, target)
+        loss_per_iter = evaluate(target,pred,cfg['weights'])
         val_process.set_description("evaluating..., ")
         loss_per_validation=update(loss_per_validation,loss_per_iter)
     
@@ -148,7 +148,7 @@ def eval(net, dataloader, device, cfg):
 
     # TODO: 验证集各项损失显示
     print('>> Average Validation Loss:'+msg)
-    return loss_per_validation['loss']
+    return loss_per_validation['loss']/len(dataloader)
 
 
 if __name__ == "__main__":
@@ -205,7 +205,7 @@ if __name__ == "__main__":
 
 
     min_loss = 1000.
-    min_val_loss = 1000.
+    min_val_loss = 10000.
     # 开始迭代
     
     for epoch in range(config['max_epoch']):
@@ -216,12 +216,12 @@ if __name__ == "__main__":
         if train_avg_loss < min_loss:
             min_loss = train_avg_loss
             filename = '{}_ep{}.pt'.format(get_time(), epoch+1)
-            torch.save(net.state_dict(), f=save_pth/filename)
+            torch.save(net.state_dict(), f=os.path.join(save_pth,filename))
 
         if eval_avg_loss < min_val_loss:
             min_val_loss = eval_avg_loss
             filename = '{}_ep{}_val.pt'.format(get_time(), epoch+1)
-            torch.save(net.state_dict(), f=save_pth/filename)
+            torch.save(net.state_dict(), f=os.path.join(save_pth,filename))
 
         print('EP {} training loss:{:.6f} min:{:.6f}'.format(
             epoch, train_avg_loss, min_loss), file=log)

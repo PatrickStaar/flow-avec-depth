@@ -4,6 +4,7 @@ from ssim import ssim
 from geometrics import flow_warp, inverse_warp, pose2flow, mask_gen
 from collections import defaultdict
 
+eps=1e-3
 
 def gradient(pred):
     dy = torch.abs(pred[..., :-1, :] - pred[..., 1:, :])
@@ -31,7 +32,7 @@ def upsample(src, shape):
 #     return masks
 
 
-def summerize(pred, target, cfg, eps=1e-3):
+def summerize(pred, target, cfg):
     loss_dict = dict(
         loss=0.,
         reprojection_loss=0.,
@@ -51,7 +52,7 @@ def summerize(pred, target, cfg, eps=1e-3):
             depthmap.squeeze_(dim=1)
             pose = pred['pose']
             loss_dict['reprojection_loss'] += loss_reprojection(
-                1./(depthmap+eps), pose,
+                depthmap, pose,
                 target['img_src'],
                 target['img_tgt'],
                 target['intrinsics'],
@@ -88,9 +89,14 @@ def loss_reconstruction(img_tgt, img_warped, weights, mask=None):
     if mask is not None:
         img_tgt = img_tgt*mask
         img_warped = img_warped*mask
+    
+    valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
+    penalty=valid_area.nelement()/(valid_area.sum()+eps)
+
+    img_tgt=img_tgt*valid_area
     ssim_value = 1-ssim(img_warped, img_tgt)
     l1 = F.l1_loss(img_warped, img_tgt)
-    return ssim_value * weights['ssim'] + l1 * weights['l1']
+    return penalty*(ssim_value * weights['ssim'] + l1 * weights['l1'])
 
 
 def loss_reprojection(depth, pose, img_src, img_tgt,
@@ -108,7 +114,7 @@ def loss_flow_consistency(flow, img_src, img_tgt, weights):
     return loss_reconstruction(img_tgt, img_warped, weights)
 
 
-def loss_smo(tgt, img):
+def loss_smo_edge_aware(tgt, img):
     # B, _, H, W = tgt.size()
     grad_target_x, grad_target_y = gradient(tgt)
     grad_image_x, grad_image_y = gradient(img)
@@ -117,6 +123,13 @@ def loss_smo(tgt, img):
     loss_smo_x = torch.exp(-grad_image_x)*grad_target_x
     loss_smo_y = torch.exp(-grad_image_y)*grad_target_y
     return loss_smo_x.mean()+loss_smo_y.mean()
+
+def loss_smo(tgt, img):
+    # B, _, H, W = tgt.size()
+    dx, dy = gradient(tgt)
+    dx2, dxdy = gradient(dx)
+    dydx, dy2 = gradient(dy)
+    return dx2.abs().mean() + dxdy.abs().mean() + dydx.abs().mean() + dy2.abs().mean()
 
 
 # supervised

@@ -49,8 +49,8 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False):
         intrinsics = input_dict['intrinsics'].to(device)
         intrinsics_inv = input_dict['intrinsics_inv'].to(device)
         depth_maps, pose, flows = net([img0, img1])
-        # if depth_maps is not None:
-        #     depth_maps = [1./(d+eps) for d in depth_maps]
+        if depth_maps is not None:
+            depth_maps = [d*cfg['depth_scale']+cfg['depth_eps'] for d in depth_maps]
         # depth_t1_multi_scale = [1./(d[:, 1]+eps) for d in depth_maps]
     
         # generate multi scale mask, including forward and backward masks
@@ -109,7 +109,7 @@ def eval(net, dataloader, device, cfg):
         intrinsics_inv = input_dict['intrinsics_inv'].to(device)
         
         depth, pose, flow = net([img0, img1])
-        depth = 1./(depth+eps)
+        depth = depth*cfg['depth_scale']+cfg['depth_eps'] 
 
         # depth1 = [1./(d[:, 1]+eps) for d in depthmap]
         # flow_backward = [-f for f in flow]

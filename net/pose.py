@@ -29,4 +29,5 @@ class Pose(nn.Module):
         p = self.adaptive_pooling(p)
         p = th.flatten(p, start_dim=1)
         p = self.fc(p)
+        p = 0.01*p
         return p

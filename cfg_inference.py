@@ -4,26 +4,9 @@ from transforms import *
 
 config=dict(
     data=dict(
-        train=dict(
-            root='/dataset/kitti',
-            sample_list='split/eigen_full/26.txt',
-            transform=Compose([
-                Scale(192,640),
-                RandomHorizontalFlip(),
-                ArrayToTensor(),
-                Normalize(mean=[0.5,0.5,0.5], std = [0.5,0.5,0.5]),]),
-            train=True,
-            batch_size=4,
-            sequence=(-1,0),
-            # rigid=True,
-            input_size=(192,640),
-            intrinsics=None,
-            shuffle=True,
-            pin_memory=True,
-        ),
         val=dict(
-            root='/dataset/kitti',
-            sample_list='split/eigen_full/26_val.txt',
+            root='./dataset/kitti',
+            sample_list='split/lite/lite_val.txt',
             transform=Compose([
                 Scale(192,640),
                 ArrayToTensor(),
@@ -54,16 +37,15 @@ config=dict(
         use_flow=True,
         use_pose=True,
         pretrain_encoder='pretrain/resnet50_mod.pth',
-        
     ),
     # optimizer
-    max_epoch=30,
+    max_epoch=20,
     lr = 1e-3,
     steps=100,
 
     # losses
     losses=dict(
-        use_depth=True,
+        use_depth=False,
         use_flow=True,
         use_pose=False,
         use_disc=False,
@@ -73,8 +55,8 @@ config=dict(
         weights=dict(
             reprojection_loss=1.,
             flow_consistency=1.,
-            depth_smo=1.,
-            flow_smo=1.,
+            depth_smo=0,
+            flow_smo=0.1,
             depth_loss=1,
             flow_loss=0,
             pose_loss=0,
@@ -86,9 +68,9 @@ config=dict(
     ),
 
     save_pth='./checkpoints',
-    pretrain=False,
-    pretrained_weights='./checkpoints/12.16.09.25.48_ep22_val.pt',
-    log = './checkpoints/log',
+    pretrain=True,
+    pretrained_weights='./checkpoints/04.17.12.14.54_ep18.pt',
+    log='./checkpoints/log',
 
     # test
     # test_tmp = Path('./tmp')

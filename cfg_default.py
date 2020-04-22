@@ -5,15 +5,15 @@ from transforms import *
 config=dict(
     data=dict(
         train=dict(
-            root='./dataset/kitti',
-            sample_list='split/lite/lite_train.txt',
+            root='/dataset/kitti',
+            sample_list='split/eigen_full/26.txt',
             transform=Compose([
                 Scale(192,640),
                 RandomHorizontalFlip(),
                 ArrayToTensor(),
                 Normalize(mean=[0.5,0.5,0.5], std = [0.5,0.5,0.5]),]),
             train=True,
-            batch_size=2,
+            batch_size=4,
             sequence=(-1,0),
             # rigid=True,
             input_size=(192,640),
@@ -22,8 +22,8 @@ config=dict(
             pin_memory=True,
         ),
         val=dict(
-            root='./dataset/kitti',
-            sample_list='split/lite/lite_val.txt',
+            root='/dataset/kitti',
+            sample_list='split/eigen_full/26_val.txt',
             transform=Compose([
                 Scale(192,640),
                 ArrayToTensor(),
@@ -56,27 +56,27 @@ config=dict(
         pretrain_encoder='pretrain/resnet50_mod.pth',
     ),
     # optimizer
-    max_epoch=50,
-    lr = 0.0001,
+    max_epoch=20,
+    lr = 1e-3,
     steps=100,
 
     # losses
     losses=dict(
-        use_depth=True,
+        use_depth=False,
         use_flow=True,
         use_pose=False,
         use_disc=False,
-        use_mask=True,
+        use_mask=False,
         weights=dict(
             reprojection_loss=1.,
             flow_consistency=1.,
-            depth_smo=0.001,
-            flow_smo=1,
+            depth_smo=0,
+            flow_smo=0.1,
             depth_loss=1,
             flow_loss=0,
             pose_loss=0,
             disc=0., # Discriminator loss, not implemented for now.
-            multi_scale=[1.,1.,1.,1.,1.],
+            multi_scale=[1./16,1./8,1./4,1./2,1.],
             ssim=1.,
             l1=1,
         ),

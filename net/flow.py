@@ -50,21 +50,21 @@ class Flow(nn.Module):
         f = self.conv1x1_2(cat([f, features[3]]))
         f = self.decode2(cat([f, f1]))  # 1024->512
         f2 = self.output2(f)
-        f2 = F.relu(f2)
+        #f2 = F.relu(f2)
 
         f = self.conv1x1_3(cat([f, features[2]]))
         f = self.decode3(cat([f, f2]))  # 512->256
         f3 = self.output3(f)
-        f3 = F.relu(f3)
+        #f3 = F.relu(f3)
 
         f = self.conv1x1_4(cat([f, features[1]]))
         f = self.decode4(cat([f, f3]))  # 256->64
         f4 = self.output4(f)
-        f4 = F.relu(f4)
+        #f4 = F.relu(f4)
 
         f = self.conv1x1_5(cat([f, features[0]]))
         f = self.decode5(cat([f, f4]))  # 64->32
         f5 = self.output5(f)
-        f5 = F.relu(f5)
+        #f5 = F.relu(f5)
 
         return [f5, f4, f3, f2, f1]

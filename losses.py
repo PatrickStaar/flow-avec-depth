@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from ssim import ssim
 from geometrics import flow_warp, inverse_warp, pose2flow, mask_gen
+from collections import defaultdict
 
 
 def gradient(pred):
@@ -30,7 +31,7 @@ def upsample(src, shape):
 #     return masks
 
 
-def summerize(pred, target, cfg):
+def summerize(pred, target, cfg, eps=1e-3):
     loss_dict = dict(
         loss=0.,
         reprojection_loss=0.,
@@ -39,6 +40,7 @@ def summerize(pred, target, cfg):
         depth_smo=0.,
         # disc=0.,
     )
+    loss_dict = defaultdict(float)
     weights = cfg['weights']
     B, _, H, W = target['img_src'].size()
 
@@ -49,7 +51,7 @@ def summerize(pred, target, cfg):
             depthmap.squeeze_(dim=1)
             pose = pred['pose']
             loss_dict['reprojection_loss'] += loss_reprojection(
-                depthmap, pose,
+                1./(depthmap+eps), pose,
                 target['img_src'],
                 target['img_tgt'],
                 target['intrinsics'],
@@ -123,7 +125,8 @@ def loss_depth(gt, pred):
     # gt = torch.nn.functional.adaptive_avg_pool2d(gt, (H, W))
     pred.squeeze_(dim=1)
     pred[gt==0]=0.0
-    loss = F.l1_loss(pred,gt)
+    loss = torch.abs(pred-gt).mean()
+   # loss = F.l1_loss(pred,gt)
     return loss
 
 

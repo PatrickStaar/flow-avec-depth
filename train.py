@@ -191,7 +191,7 @@ if __name__ == "__main__":
     # 设置优化器
     weights = net.parameters()
     opt = torch.optim.Adam(weights, lr=config['lr'])
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt,patience=2,factor=0.5,min_lr=1e-5,cooldown=1)
     log_dir = os.path.join(config['log'],(get_time()+'.txt'))
     # 启动summary
     global_steps = 0
@@ -211,8 +211,8 @@ if __name__ == "__main__":
     for epoch in range(config['max_epoch']):
         # set to train mode
         train_avg_loss = train(net, train_loader, device, opt, config['losses'])
+        scheduler.step(train_avg_loss)
         eval_avg_loss = eval(net, val_loader, device,config['losses'])
-
         if train_avg_loss < min_loss:
             min_loss = train_avg_loss
             filename = '{}_ep{}.pt'.format(get_time(), epoch+1)

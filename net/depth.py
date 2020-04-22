@@ -45,6 +45,7 @@ class Depth(nn.Module):
         d = self.conv1x1_1(cat([d, features[4]]))
         d = self.decode1(d)  # 512->256
         d1 = self.output1(d)
+        d1 = F.relu(d1)
 
         d = self.conv1x1_2(cat([d, features[3]]))
         d = self.decode2(cat([d, d1]))  # 256->128

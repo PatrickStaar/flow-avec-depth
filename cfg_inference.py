@@ -69,7 +69,7 @@ config=dict(
 
     save_pth='./checkpoints',
     pretrain=True,
-    pretrained_weights='./checkpoints/04.17.12.14.54_ep18.pt',
+    pretrained_weights='./checkpoints/04.22.20.50.04_ep25.pt',
     log='./checkpoints/log',
 
     # test

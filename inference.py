@@ -64,8 +64,30 @@ def inference(net, dataloader, device, cfg):
         intrinsics_inv = input_dict['intrinsics_inv'].to(device)
         
         depth, pose, flow = net([img0, img1])
-        # depth = 1./(depth+eps)
+        depth = depth*cfg['depth_scale']+cfg['depth_eps']+50
+        # if mask is not None:
+            # img_tgt = img_tgt*mask
+            # img_warped = img_warped*mask
 
+        img_warped = inverse_warp(img0, depth.squeeze_(dim=1), pose, intrinsics, intrinsics_inv)
+        valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
+
+    
+        img_warped = img_warped.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)*0.5+0.5
+        img_warped=cv2.cvtColor(img_warped,cv2.COLOR_BGR2RGB)
+        cv2.imwrite(save_dir/'{}_depth_recon.jpg'.format(i), np.uint8(img_warped*255))
+
+        flow_rigid = pose2flow(depth, pose, intrinsics, intrinsics_inv)
+        print(flow_rigid.mean())
+        print(flow.mean())
+        f = flow_rigid.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)
+        f[...,0]=f[...,0]*(f.shape[0]-1)/2
+        f[...,1]=f[...,1]*(f.shape[1]-1)/2
+
+        f = np.concatenate([f,np.ones((f.shape[0],f.shape[1],1))],axis=-1)
+
+        # color_map=flow_visualize(f)
+        flow_write(save_dir/('{}_rigid_flow.png'.format(i)),f)
         # depth1 = [1./(d[:, 1]+eps) for d in depthmap]
         # flow_backward = [-f for f in flow]
 
@@ -80,6 +102,7 @@ def inference(net, dataloader, device, cfg):
         #     masks = None
         # cv2.imwrite(os.path.join(save_dir,'{}_depth_pred.png'.format(i)),depth)
         # cv2.imwrite(os.path.join(save_dir,'{}_img.jpg'.format(i)),img0)
+
         forward_warped = flow_warp(
         img0, flow).cpu().detach().numpy().squeeze(0)
         print(torch.max(flow))

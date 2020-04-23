@@ -14,4 +14,4 @@
 *.swo
 *.jpg
 *.png
-
+/outputs/*

@@ -67,14 +67,15 @@ config=dict(
         use_flow=True,
         use_pose=False,
         use_disc=False,
-        use_mask=False,
+        use_mask=True,
         depth_scale=10,
         depth_eps=0.01,
         weights=dict(
             reprojection_loss=1.,
             flow_consistency=1.,
-            depth_smo=0.01,
-            flow_smo=0.01,
+            depth_smo=0,
+            mask_loss=1,
+            flow_smo=0.1,
             depth_loss=1,
             flow_loss=0,
             pose_loss=0,
@@ -86,8 +87,8 @@ config=dict(
     ),
 
     save_pth='./checkpoints',
-    pretrain=False,
-    pretrained_weights='./checkpoints/04.17.12.14.54_ep18.pt',
+    pretrain=True,
+    pretrained_weights='./checkpoints/04.22.20.50.04_ep25',
     log = './checkpoints/log',
 
     # test

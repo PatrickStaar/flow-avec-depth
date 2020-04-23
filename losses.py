@@ -57,7 +57,7 @@ def summerize(pred, target, cfg):
                 target['img_tgt'],
                 target['intrinsics'],
                 target['intrinsics_inv'],
-                mask=pred['mask'],
+                # mask=pred['mask'],
                 weights=weights)*scale_weight
 
             loss_dict['depth_smo'] += loss_smo(
@@ -77,6 +77,9 @@ def summerize(pred, target, cfg):
 
         if cfg['use_disc']:
             pass
+    
+    if cfg['use_mask']:
+        loss_dict['mask_loss']=(1-pred['mask']).mean()
 
     for k in weights.keys():
         if k in loss_dict.keys():
@@ -91,7 +94,7 @@ def loss_reconstruction(img_tgt, img_warped, weights, mask=None):
         img_warped = img_warped*mask
     
     valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
-    penalty=valid_area.nelement()/(valid_area.sum()+eps)
+    penalty=valid_area.nelement()/(valid_area.sum()+1.)
 
     img_tgt=img_tgt*valid_area
     ssim_value = 1-ssim(img_warped, img_tgt)
@@ -124,7 +127,7 @@ def loss_smo_edge_aware(tgt, img):
     loss_smo_y = torch.exp(-grad_image_y)*grad_target_y
     return loss_smo_x.mean()+loss_smo_y.mean()
 
-def loss_smo(tgt, img):
+def loss_smo(tgt):
     # B, _, H, W = tgt.size()
     dx, dy = gradient(tgt)
     dx2, dxdy = gradient(dx)

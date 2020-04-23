@@ -51,6 +51,8 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False):
         depth_maps, pose, flows = net([img0, img1])
         if depth_maps is not None:
             depth_maps = [d*cfg['depth_scale']+cfg['depth_eps'] for d in depth_maps]
+    #    maxes=[torch.max(depth_maps[0])]
+     #   print(maxes)
         # depth_t1_multi_scale = [1./(d[:, 1]+eps) for d in depth_maps]
     
         # generate multi scale mask, including forward and backward masks
@@ -191,7 +193,7 @@ if __name__ == "__main__":
     # 设置优化器
     weights = net.parameters()
     opt = torch.optim.Adam(weights, lr=config['lr'])
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt,patience=2,factor=0.5,min_lr=1e-5,cooldown=1)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt,patience=2,factor=0.5,min_lr=1e-7,cooldown=1)
     log_dir = os.path.join(config['log'],(get_time()+'.txt'))
     # 启动summary
     global_steps = 0

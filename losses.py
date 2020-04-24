@@ -33,14 +33,7 @@ def upsample(src, shape):
 
 
 def summerize(pred, target, cfg):
-    loss_dict = dict(
-        loss=0.,
-        reprojection_loss=0.,
-        flow_consistency=0.,
-        flow_smo=0.,
-        depth_smo=0.,
-        # disc=0.,
-    )
+
     loss_dict = defaultdict(float)
     weights = cfg['weights']
     B, _, H, W = target['img_src'].size()

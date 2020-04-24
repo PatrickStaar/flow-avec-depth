@@ -127,7 +127,7 @@ def loss_smo_edge_aware(tgt, img):
     loss_smo_y = torch.exp(-grad_image_y)*grad_target_y
     return loss_smo_x.mean()+loss_smo_y.mean()
 
-def loss_smo(tgt):
+def loss_smo(tgt,img):
     # B, _, H, W = tgt.size()
     dx, dy = gradient(tgt)
     dx2, dxdy = gradient(dx)

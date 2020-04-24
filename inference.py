@@ -64,7 +64,7 @@ def inference(net, dataloader, device, cfg):
         intrinsics_inv = input_dict['intrinsics_inv'].to(device)
         
         depth, pose, flow = net([img0, img1])
-        depth = depth*cfg['depth_scale']+cfg['depth_eps']+50
+        depth = depth*cfg['depth_scale']+cfg['depth_eps']
         # if mask is not None:
             # img_tgt = img_tgt*mask
             # img_warped = img_warped*mask

@@ -47,7 +47,13 @@ class PDF(nn.Module):
         else:
             # TODO:there is a conflict when some modules are not used
             # got to fix it
-            return depth_map[0], pose, flow_map[0]
+            if self.use_depth:
+                depth_map = depth_map[0]
+            if self.use_flow:
+                flow_map = flow_map[0]
+            if self.use_pose:
+                pose = pose
+            return depth_map, pose, flow_map
 
     def init_weights(self):
         if self.use_depth:

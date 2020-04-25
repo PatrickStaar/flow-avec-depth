@@ -9,7 +9,7 @@ from geometrics import inverse_warp, flow_warp, pose2flow, mask_gen, pose_vec2ma
 from losses import *
 # from tensorboardX import SummaryWriter
 from tqdm import tqdm
-from cfg_default import config
+from cfg_depth import config
 from collections import defaultdict
 
 def get_time():

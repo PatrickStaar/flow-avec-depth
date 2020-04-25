@@ -13,7 +13,7 @@ class Pose(nn.Module):
         self.conv_block = nn.Sequential(
             conv(2048, 1024,activation='relu'),
             conv(1024, 512,activation='relu'),
-            # conv(256, 128,activation='relu'),
+            conv(512, 256,activation='relu'),
         )
         self.adaptive_pooling = nn.AdaptiveMaxPool2d(1)
         self.fc = nn.Sequential(
@@ -26,9 +26,10 @@ class Pose(nn.Module):
 
     def forward(self, features):
         p = self.conv_block(features[-1])
-        p = self.adaptive_pooling(p)
+        p = p.mean(3).mean(2)
+        # p = self.adaptive_pooling(p)
         p = th.flatten(p, start_dim=1)
         p = self.fc(p)
-        p = F.tanh(p)
-        p = 10*p
+        # p = F.tanh(p)
+        p = 0.01*p
         return p

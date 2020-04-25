@@ -68,7 +68,8 @@ def inference(net, dataloader, device, cfg):
         # if mask is not None:
             # img_tgt = img_tgt*mask
             # img_warped = img_warped*mask
-
+        
+        print(pose)
         img_warped = inverse_warp(img0, depth.squeeze_(dim=1), pose, intrinsics, intrinsics_inv)
         valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
 
@@ -78,8 +79,7 @@ def inference(net, dataloader, device, cfg):
         cv2.imwrite(save_dir/'{}_depth_recon.jpg'.format(i), np.uint8(img_warped*255))
 
         flow_rigid = pose2flow(depth, pose, intrinsics, intrinsics_inv)
-        print(flow_rigid.mean())
-        print(flow.mean())
+
         f = flow_rigid.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)
         f[...,0]=f[...,0]*(f.shape[0]-1)/2
         f[...,1]=f[...,1]*(f.shape[1]-1)/2

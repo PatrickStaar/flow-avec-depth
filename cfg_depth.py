@@ -4,9 +4,26 @@ from transforms import *
 
 config=dict(
     data=dict(
+        train=dict(
+            root='/dataset/kitti',
+            sample_list='split/eigen_full/26.txt',
+            transform=Compose([
+                Scale(192,640),
+                RandomHorizontalFlip(),
+                ArrayToTensor(),
+                Normalize(mean=[0.5,0.5,0.5], std = [0.5,0.5,0.5]),]),
+            train=True,
+            batch_size=4,
+            sequence=(-1,0),
+            # rigid=True,
+            input_size=(192,640),
+            intrinsics=None,
+            shuffle=True,
+            pin_memory=True,
+        ),
         val=dict(
-            root='./dataset/kitti',
-            sample_list='split/lite/lite_val.txt',
+            root='/dataset/kitti',
+            sample_list='split/eigen_full/26_val.txt',
             transform=Compose([
                 Scale(192,640),
                 ArrayToTensor(),
@@ -34,43 +51,45 @@ config=dict(
     # model
     model=dict(
         use_depth=True,
-        use_flow=True,
+        use_flow=False,
         use_pose=True,
         pretrain_encoder='pretrain/resnet50_mod.pth',
+        
     ),
     # optimizer
     max_epoch=20,
-    lr = 1e-3,
+    lr = 1e-4,
     steps=100,
 
     # losses
     losses=dict(
-        use_depth=False,
-        use_flow=True,
+        use_depth=True,
+        use_flow=False,
         use_pose=False,
         use_disc=False,
         use_mask=False,
         depth_scale=100,
         depth_eps=0.01,
         weights=dict(
-            reprojection_loss=1.,
-            flow_consistency=1.,
-            depth_smo=0,
+            reprojection_loss=1,
+            flow_consistency=1,
+            depth_smo=0.01,
+            mask_loss=1,
             flow_smo=0.1,
             depth_loss=1,
             flow_loss=0,
             pose_loss=0,
-            disc=0., # Discriminator loss, not implemented for now.
-            multi_scale=[1./16,1./8,1./4,1./2,1.],
-            ssim=1.,
+            disc=0, # Discriminator loss, not implemented for now.
+            multi_scale=[1/16,1./8,1./4,1./2,1.],
+            ssim=1,
             l1=1,
         ),
     ),
 
     save_pth='./checkpoints',
-    pretrain=True,
-    pretrained_weights='./checkpoints/04.24.20.22.53_ep20_val.pt',
-    log='./checkpoints/log',
+    pretrain=False,
+    pretrained_weights='./checkpoints/04.22.20.50.04_ep25.pt',
+    log = './checkpoints/log',
 
     # test
     # test_tmp = Path('./tmp')

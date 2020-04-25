@@ -50,15 +50,17 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False):
         intrinsics_inv = input_dict['intrinsics_inv'].to(device)
         depth_maps, pose, flows = net([img0, img1])
         if depth_maps is not None:
-            depth_maps = [d*cfg['depth_scale']+cfg['depth_eps'] for d in depth_maps]
+            depth_maps = [1/(d*cfg['depth_scale']+cfg['depth_eps']) for d in depth_maps]
     #    maxes=[torch.max(depth_maps[0])]
      #   print(maxes)
         # depth_t1_multi_scale = [1./(d[:, 1]+eps) for d in depth_maps]
     
         # generate multi scale mask, including forward and backward masks
         # TODO: 实现方法待改进
-        mask =  mask_gen(depth_maps[0].squeeze(dim=1),pose,flows[0],
-                intrinsics,intrinsics_inv) if cfg['use_mask'] else None 
+        mask = None if not cfg['use_mask'] \
+                else mask_gen(
+                    depth_maps[0].squeeze(dim=1),
+                    pose,flows[0],intrinsics,intrinsics_inv)
 
         # 这里还需要改进，输入的格式
         pred = dict(

@@ -30,7 +30,7 @@ class PDF(nn.Module):
     def forward(self, inputs):
         
         depth_map=None
-        flowmap=None
+        flow_map=None
         pose=None
 
         x = cat(inputs)

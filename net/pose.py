@@ -17,11 +17,11 @@ class Pose(nn.Module):
         )
         self.adaptive_pooling = nn.AdaptiveMaxPool2d(1)
         self.fc = nn.Sequential(
-            nn.Linear(512, 512),
+            nn.Linear(256, 256),
             nn.LeakyReLU(0.1,inplace=True),
-            nn.Linear(512, 512),
+            nn.Linear(256, 256),
             nn.LeakyReLU(0.1,inplace=True),
-            nn.Linear(512, 6)
+            nn.Linear(256, 6)
         )
 
     def forward(self, features):

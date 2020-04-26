@@ -113,7 +113,7 @@ def eval(net, dataloader, device, cfg):
         intrinsics_inv = input_dict['intrinsics_inv'].to(device)
         
         depth, pose, flow = net([img0, img1])
-        depth = depth*cfg['depth_scale']+cfg['depth_eps'] 
+        depth = 1/(depth*cfg['depth_scale']+cfg['depth_eps'])
 
         # depth1 = [1./(d[:, 1]+eps) for d in depthmap]
         # flow_backward = [-f for f in flow]

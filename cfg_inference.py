@@ -8,13 +8,13 @@ config=dict(
             root='./dataset/kitti',
             sample_list='split/lite/lite_val.txt',
             transform=Compose([
-                Scale(192,640),
+                Scale(384,1280),
                 ArrayToTensor(),
                 Normalize(mean=[0.5,0.5,0.5], std = [0.5,0.5,0.5]),]),
             train=False,
             batch_size=1,
             sequence=(-1,0),
-            input_size=(192,640),
+            input_size=(384,1280),
             intrinsics=None,
             with_depth=True, 
             with_flow=False, 
@@ -34,7 +34,7 @@ config=dict(
     # model
     model=dict(
         use_depth=True,
-        use_flow=True,
+        use_flow=False,
         use_pose=True,
         pretrain_encoder='pretrain/resnet50_mod.pth',
     ),
@@ -69,7 +69,7 @@ config=dict(
 
     save_pth='./checkpoints',
     pretrain=True,
-    pretrained_weights='./checkpoints/04.24.20.22.53_ep20_val.pt',
+    pretrained_weights='./checkpoints/04.25.16.39.29_ep20.pt',
     log='./checkpoints/log',
 
     # test

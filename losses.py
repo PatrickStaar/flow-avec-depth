@@ -53,7 +53,7 @@ def summerize(pred, target, cfg):
                 # mask=pred['mask'],
                 weights=weights)*scale_weight
 
-            loss_dict['depth_smo'] += loss_smo_edge_aware(
+            loss_dict['depth_smo'] += loss_smo(
                 depthmap, target['img_src'])*scale_weight
 
         if cfg['use_flow']:

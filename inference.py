@@ -51,6 +51,12 @@ def flow_write(filename, flow):
     cv2.imwrite(filename, flow)
 
 
+def post_process(img):
+    img = img.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)*0.5+0.5
+    img = cv2.cvtColor(img*255,cv2.COLOR_BGR2RGB).astype(np.uint8)
+    return img
+
+
 def inference(net, dataloader, device, cfg):
 
     eps=1e-4
@@ -64,81 +70,55 @@ def inference(net, dataloader, device, cfg):
         intrinsics_inv = input_dict['intrinsics_inv'].to(device)
         
         depth, pose, flow = net([img0, img1])
-        depth = depth*cfg['depth_scale']+cfg['depth_eps']
-        # if mask is not None:
-            # img_tgt = img_tgt*mask
-            # img_warped = img_warped*mask
+
+        if depth is not None:
+            depth_map = 1/(depth*cfg['depth_scale']+cfg['depth_eps'])
+
+            img_warped = inverse_warp(img0, depth_map.squeeze_(dim=1), pose, intrinsics, intrinsics_inv)
+
+            valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
+
+            flow_rigid = pose2flow(depth_map, pose, intrinsics, intrinsics_inv)
+
+            img_warped = post_process(img_warped)
+    
+            f = flow_rigid.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)
+            f[...,0]=f[...,0]*(f.shape[0]-1)/2
+            f[...,1]=f[...,1]*(f.shape[1]-1)/2
+            f = np.concatenate([f,np.ones((f.shape[0],f.shape[1],1))],axis=-1)
+            
+            # color_map=flow_visualize(f)
+
+            depth_map = depth_map.cpu().detach().numpy().transpose(1, 2, 0)
+            depth_mean = depth_map.mean()
+            depth_map = depth_map*(20/depth_mean)
+            depth_map = np.clip(depth_map,0,255)
+
+            forward_tgt = post_process(img1)
+            forward_src = post_process(img0)
+
+            
+            cv2.imwrite(save_dir/'{}_forward_tgt.jpg'.format(i),forward_tgt)
+            cv2.imwrite(save_dir/'{}_forward_src.jpg'.format(i),forward_src)            
+            cv2.imwrite(save_dir/'{}_depth_map.png'.format(i),depth_map)
+            cv2.imwrite(save_dir/'{}_depth_recon.jpg'.format(i), img_warped)
+            flow_write(save_dir/('{}_rigid_flow.png'.format(i)),f)
+
+            
+
+        if flow is not None:
         
-        print(pose)
-        img_warped = inverse_warp(img0, depth.squeeze_(dim=1), pose, intrinsics, intrinsics_inv)
-        valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
+            forward_warped = post_process(flow_warp(img0, flow))
+            cv2.imwrite(save_dir/'{}_forward_warped.jpg'.format(i),forward_warped)    
+        
+            ## save flow to png file
+            f = flow.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)
+            f[...,0]=f[...,0]*(f.shape[0]-1)/2
+            f[...,1]=f[...,1]*(f.shape[1]-1)/2
 
-    
-        img_warped = img_warped.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)*0.5+0.5
-        img_warped=cv2.cvtColor(img_warped,cv2.COLOR_BGR2RGB)
-        cv2.imwrite(save_dir/'{}_depth_recon.jpg'.format(i), np.uint8(img_warped*255))
-
-        flow_rigid = pose2flow(depth, pose, intrinsics, intrinsics_inv)
-
-        f = flow_rigid.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)
-        f[...,0]=f[...,0]*(f.shape[0]-1)/2
-        f[...,1]=f[...,1]*(f.shape[1]-1)/2
-
-        f = np.concatenate([f,np.ones((f.shape[0],f.shape[1],1))],axis=-1)
-
-        # color_map=flow_visualize(f)
-        flow_write(save_dir/('{}_rigid_flow.png'.format(i)),f)
-        # depth1 = [1./(d[:, 1]+eps) for d in depthmap]
-        # flow_backward = [-f for f in flow]
-
-        # generate multi scale mask, including forward and backward masks
-        # if not cfg.rigid:
-        #     masks = multi_scale_mask(
-        #         multi_scale=1, depth=(depth0, depth1),
-        #         pose=pose, flow=(flow, flow_backward),
-        #         intrinsics=intrinsics, intrinsics_inv=intrinsics_inv)
-        # else:
-        #     # mask is not needed in full rigid scenes
-        #     masks = None
-        # cv2.imwrite(os.path.join(save_dir,'{}_depth_pred.png'.format(i)),depth)
-        # cv2.imwrite(os.path.join(save_dir,'{}_img.jpg'.format(i)),img0)
-
-        forward_warped = flow_warp(
-        img0, flow).cpu().detach().numpy().squeeze(0)
-        print(torch.max(flow))
-
-        forward_warped = forward_warped.transpose(1, 2, 0)*0.5+0.5
-    
-        forward_img = img1.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)*0.5+0.5
-        forward_img=cv2.cvtColor(forward_img,cv2.COLOR_BGR2RGB)
-        cv2.imwrite(save_dir/'{}_forward_src.jpg'.format(i),
-                        np.uint8(forward_img*255))
-        forward_warped=cv2.cvtColor(forward_warped,cv2.COLOR_BGR2RGB)
-        cv2.imwrite(save_dir/'{}_forward.jpg'.format(i),
-                        np.uint8(forward_warped*255)[:,:,])
-        ## save flow to png file
-        f = flow.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)
-        f[...,0]=f[...,0]*(f.shape[0]-1)/2
-        f[...,1]=f[...,1]*(f.shape[1]-1)/2
-
-        f = np.concatenate([f,np.ones((f.shape[0],f.shape[1],1))],axis=-1)
-
-        # color_map=flow_visualize(f)
-        flow_write(save_dir/('{}_flow.png'.format(i)),f)
-
-
-
-        # 具体的validation loss计算的指标和输出的形式还需确定
-    #     loss_per_iter = evaluate(target,pred,cfg['weights'])
-    #     val_process.set_description("evaluating..., ")
-    #     loss_per_validation=update(loss_per_validation,loss_per_iter)
-    
-    # msg=''
-    # for k,v in loss_per_validation.items():
-    #     msg+= '{}:{:.6f},'.format(k,v/len(dataloader))
-
-    # # TODO: 验证集各项损失显示
-    # print('>> Average Validation Loss:'+msg)
+            f = np.concatenate([f,np.ones((f.shape[0],f.shape[1],1))],axis=-1)
+            # color_map=flow_visualize(f)
+            flow_write(save_dir/('{}_flow.png'.format(i)),f)
 
 
 

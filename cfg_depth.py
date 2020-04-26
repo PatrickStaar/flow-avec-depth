@@ -57,7 +57,7 @@ config=dict(
         
     ),
     # optimizer
-    max_epoch=20,
+    max_epoch=30,
     lr = 1e-4,
     steps=100,
 
@@ -73,7 +73,7 @@ config=dict(
         weights=dict(
             reprojection_loss=1,
             flow_consistency=1,
-            depth_smo=0.01,
+            depth_smo=0.1,
             mask_loss=1,
             flow_smo=0.1,
             depth_loss=1,
@@ -87,8 +87,8 @@ config=dict(
     ),
 
     save_pth='./checkpoints',
-    pretrain=False,
-    pretrained_weights='./checkpoints/04.22.20.50.04_ep25.pt',
+    pretrain=True,
+    pretrained_weights='./checkpoints/04.25.16.39.29_ep20.pt',
     log = './checkpoints/log',
 
     # test

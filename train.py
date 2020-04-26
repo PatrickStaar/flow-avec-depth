@@ -127,6 +127,8 @@ def eval(net, dataloader, device, cfg):
         # else:
         #     # mask is not needed in full rigid scenes
         #     masks = None
+        print('max: {}'.format(input_dict['depth_gt'].max()))
+        print('mean: {}'.format(input_dict['depth_gt'].mean()))
 
         pred = dict(
             depthmap=depth,

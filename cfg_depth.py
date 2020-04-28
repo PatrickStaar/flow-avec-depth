@@ -73,7 +73,7 @@ config=dict(
         weights=dict(
             reprojection_loss=1,
             flow_consistency=1,
-            depth_smo=0.1,
+            depth_smo=0.01,
             mask_loss=1,
             flow_smo=0.1,
             depth_loss=1,
@@ -87,7 +87,7 @@ config=dict(
     ),
 
     save_pth='./checkpoints',
-    pretrain=True,
+    pretrain=False,
     pretrained_weights='./checkpoints/04.25.16.39.29_ep20.pt',
     log = './checkpoints/log',
 

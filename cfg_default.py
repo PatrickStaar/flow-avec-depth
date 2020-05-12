@@ -13,7 +13,7 @@ config=dict(
                 ArrayToTensor(),
                 Normalize(mean=[0.5,0.5,0.5], std = [0.5,0.5,0.5]),]),
             train=True,
-            batch_size=4,
+            batch_size=6,
             sequence=(-1,0),
             # rigid=True,
             input_size=(192,640),
@@ -57,7 +57,7 @@ config=dict(
         
     ),
     # optimizer
-    max_epoch=20,
+    max_epoch=50,
     lr = 1e-4,
     steps=100,
 

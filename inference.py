@@ -90,8 +90,10 @@ def inference(net, dataloader, device, cfg):
             # color_map=flow_visualize(f)
 
             depth_map = depth_map.cpu().detach().numpy().transpose(1, 2, 0)
+            depth_map = 1./depth_map
             depth_mean = depth_map.mean()
-            depth_map = depth_map*(20/depth_mean)
+            depth_map = depth_map*(50/depth_mean)
+
             depth_map = np.clip(depth_map,0,255)
 
             forward_tgt = post_process(img1)
@@ -101,7 +103,7 @@ def inference(net, dataloader, device, cfg):
             cv2.imwrite(save_dir/'{}_forward_tgt.jpg'.format(i),forward_tgt)
             cv2.imwrite(save_dir/'{}_forward_src.jpg'.format(i),forward_src)            
             cv2.imwrite(save_dir/'{}_depth_map.png'.format(i),depth_map)
-            cv2.imwrite(save_dir/'{}_depth_recon.jpg'.format(i), img_warped)
+            cv2.imwrite(save_dir/'{}_forward_depth_warped.jpg'.format(i), img_warped)
             flow_write(save_dir/('{}_rigid_flow.png'.format(i)),f)
 
             
@@ -109,7 +111,7 @@ def inference(net, dataloader, device, cfg):
         if flow is not None:
         
             forward_warped = post_process(flow_warp(img0, flow))
-            cv2.imwrite(save_dir/'{}_forward_warped.jpg'.format(i),forward_warped)    
+            cv2.imwrite(save_dir/'{}_forward_flow_warped.jpg'.format(i),forward_warped)    
         
             ## save flow to png file
             f = flow.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)

@@ -185,12 +185,11 @@ if __name__ == "__main__":
     # 定义模型
     net = PDF(**config['model'])
     net.to(device)
-
+    net.init_weights()
     # 是否导入预训练
     if config['pretrain']:
-        net.load_state_dict(torch.load(config['pretrained_weights']))
-    else:
-        net.init_weights()
+        net.load_state_dict(torch.load(config['pretrained_weights']),strict=False)
+        
 
     # 设置优化器
     weights = net.parameters()
@@ -222,11 +221,12 @@ if __name__ == "__main__":
             filename = '{}_ep{}.pt'.format(get_time(), epoch+1)
             torch.save(net.state_dict(), f=os.path.join(save_pth,filename))
 
-        if eval_avg_loss < min_val_loss:
+        elif eval_avg_loss < min_val_loss:
             min_val_loss = eval_avg_loss
             filename = '{}_ep{}_val.pt'.format(get_time(), epoch+1)
             torch.save(net.state_dict(), f=os.path.join(save_pth,filename))
-
+        else:
+            pass
         print('EP {} training loss:{:.6f} min:{:.6f}'.format(
             epoch, train_avg_loss, min_loss), file=log)
         print('EP {} validation loss:{:.6f} min:{:.6f}'.format(

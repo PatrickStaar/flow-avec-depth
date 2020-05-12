@@ -51,44 +51,44 @@ config=dict(
     # model
     model=dict(
         use_depth=True,
-        use_flow=False,
+        use_flow=True,
         use_pose=True,
         pretrain_encoder='pretrain/resnet50_mod.pth',
         
     ),
     # optimizer
-    max_epoch=30,
-    lr = 1e-4,
+    max_epoch=50,
+    lr = 1e-5,
     steps=100,
 
     # losses
     losses=dict(
         use_depth=True,
-        use_flow=False,
+        use_flow=True,
         use_pose=False,
         use_disc=False,
-        use_mask=False,
+        use_mask=True,
         depth_scale=100,
-        depth_eps=0.01,
+        depth_eps=0.1,
         weights=dict(
             reprojection_loss=1,
             flow_consistency=1,
-            depth_smo=0.01,
-            mask_loss=1,
+            depth_smo=0.1,
+            mask_loss=0.1,
             flow_smo=0.1,
             depth_loss=1,
             flow_loss=0,
             pose_loss=0,
             disc=0, # Discriminator loss, not implemented for now.
-            multi_scale=[1/16,1./8,1./4,1./2,1.],
+            multi_scale=[1/16,1/8,1/4,1/2,1],
             ssim=1,
             l1=1,
         ),
     ),
 
     save_pth='./checkpoints',
-    pretrain=False,
-    pretrained_weights='./checkpoints/04.25.16.39.29_ep20.pt',
+    pretrain=True,
+    pretrained_weights='./checkpoints/05.07.01.15.31_ep50.pt',
     log = './checkpoints/log',
 
     # test

@@ -67,9 +67,11 @@ config=dict(
         ),
     ),
 
+    output_dir='output100',
+
     save_pth='./checkpoints',
     pretrain=True,
-    pretrained_weights='./checkpoints/05.08.08.46.13_ep40.pt',
+    pretrained_weights='./checkpoints/05.08.13.12.27_ep50.pt',
     log='./checkpoints/log',
 
     # test

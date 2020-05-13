@@ -57,12 +57,12 @@ def post_process(img):
     return img
 
 
-def inference(net, dataloader, device, cfg):
+def inference(net, dataloader, device, cfg, save_dir):
 
     eps=1e-4
     net.eval()
     val_process = tqdm(enumerate(dataloader))
-    save_dir=Path('./outputs')
+    
     for i, input_dict in val_process:
         img0 = input_dict['images'][0].to(device)
         img1 = input_dict['images'][1].to(device)
@@ -79,6 +79,7 @@ def inference(net, dataloader, device, cfg):
             valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
 
             flow_rigid = pose2flow(depth_map, pose, intrinsics, intrinsics_inv)
+            # color_map_flow_rigid=flow_visualize(flow_rigid)
 
             img_warped = post_process(img_warped)
     
@@ -87,7 +88,7 @@ def inference(net, dataloader, device, cfg):
             f[...,1]=f[...,1]*(f.shape[1]-1)/2
             f = np.concatenate([f,np.ones((f.shape[0],f.shape[1],1))],axis=-1)
             
-            # color_map=flow_visualize(f)
+            color_map=flow_visualize(f)
 
             depth_map = depth_map.cpu().detach().numpy().transpose(1, 2, 0)
             depth_map = 1./depth_map
@@ -104,6 +105,7 @@ def inference(net, dataloader, device, cfg):
             cv2.imwrite(save_dir/'{}_forward_src.jpg'.format(i),forward_src)            
             cv2.imwrite(save_dir/'{}_depth_map.png'.format(i),depth_map)
             cv2.imwrite(save_dir/'{}_forward_depth_warped.jpg'.format(i), img_warped)
+            cv2.imwrite(save_dir/'{}_rigid_flow_color.jpg'.format(i), color_map)
             flow_write(save_dir/('{}_rigid_flow.png'.format(i)),f)
 
             
@@ -119,11 +121,12 @@ def inference(net, dataloader, device, cfg):
             f[...,1]=f[...,1]*(f.shape[1]-1)/2
 
             f = np.concatenate([f,np.ones((f.shape[0],f.shape[1],1))],axis=-1)
-            # color_map=flow_visualize(f)
+            color_map=flow_visualize(f)
             flow_write(save_dir/('{}_flow.png'.format(i)),f)
+            cv2.imwrite(save_dir/'{}_flow_color.jpg'.format(i), color_map)
 
 
-
+save_dir=Path(config['output_dir'])
 val_loader = get_loader(**config['data']['val'])
 print('Data Loaded.')
 # TODO: 定义summary
@@ -157,7 +160,7 @@ global_steps = 0
 print('Val Samples:', len(val_loader))
 # 开始迭代
 
-inference(net, val_loader, device,config['losses'])
+inference(net, val_loader, device, config['losses'], save_dir)
 
 #     print('EP {} training loss:{:.6f} min:{:.6f}'.format(
 #         epoch, train_avg_loss, min_loss), file=log)

@@ -178,7 +178,7 @@ def inverse_warp(img, depth, pose, intrinsics, intrinsics_inv, rotation_mode='eu
     src_pixel_coords = cam2pixel(
         cam_coords, proj_cam_to_src_pixel[:, :, :3], proj_cam_to_src_pixel[:, :, -1:], padding_mode)  # [B,H,W,2]
     projected_img = torch.nn.functional.grid_sample(
-        img, src_pixel_coords, padding_mode=padding_mode)
+        img, src_pixel_coords, padding_mode=padding_mode,align_corners=False)
 
     return projected_img
 
@@ -220,7 +220,7 @@ def flow_warp(img, flow, padding_mode='zeros'):
     
     grid_tf = torch.stack((X, Y), dim=3)
     img_tf = torch.nn.functional.grid_sample(
-        img, grid_tf, padding_mode=padding_mode)
+        img, grid_tf, padding_mode=padding_mode,align_corners=False)
 
     return img_tf
 
@@ -262,11 +262,11 @@ def pose2flow(depth, pose, intrinsics, intrinsics_inv, rotation_mode='euler', pa
 
 
 # generate flow difference  mask
-def mask_gen(depth,pose,flow, intrinsics, intrinsics_inv, eps=1e-3):
+def mask_gen(rigid_flow, flow):#, intrinsics, intrinsics_inv, eps=1e-3):
     
-    flow_rigid = pose2flow(depth, pose, intrinsics, intrinsics_inv)
+    # flow_rigid = pose2flow(depth, pose, intrinsics, intrinsics_inv)
     # [B,2,H,W]->[B,H,W]
-    dist=torch.norm(flow-flow_rigid,dim=1,keepdim=True) 
+    dist=torch.norm(flow-rigid_flow,dim=1,keepdim=True) 
     return torch.exp(-dist)
 
 

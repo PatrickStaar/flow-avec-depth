@@ -9,7 +9,7 @@ from geometrics import inverse_warp, flow_warp, pose2flow, mask_gen, pose_vec2ma
 from losses import *
 # from tensorboardX import SummaryWriter
 from tqdm import tqdm
-from cfg_depth import config
+from cfg_default import config
 from collections import defaultdict
 
 def get_time():
@@ -51,23 +51,21 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False):
         depth_maps, pose, flows = net([img0, img1])
         if depth_maps is not None:
             depth_maps = [1/(d*cfg['depth_scale']+cfg['depth_eps']) for d in depth_maps]
-    #    maxes=[torch.max(depth_maps[0])]
-     #   print(maxes)
+            
         # depth_t1_multi_scale = [1./(d[:, 1]+eps) for d in depth_maps]
     
         # generate multi scale mask, including forward and backward masks
         # TODO: 实现方法待改进
-        mask = None if not cfg['use_mask'] \
-                else mask_gen(
-                    depth_maps[0].squeeze(dim=1),
-                    pose,flows[0],intrinsics,intrinsics_inv)
+        # mask = None if not cfg['use_mask'] \
+        #         else mask_gen(
+        #             depth_maps[0].squeeze(dim=1),
+        #             pose,flows[0],intrinsics,intrinsics_inv)
 
         # 这里还需要改进，输入的格式
         pred = dict(
             depthmap=depth_maps,
             flowmap=flows,
-            pose=pose,
-            mask=mask)
+            pose=pose)
         target = dict(
             img_src=img0,
             img_tgt=img1,

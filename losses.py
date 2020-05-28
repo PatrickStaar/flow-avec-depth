@@ -1,9 +1,10 @@
 import torch
 import torch.nn.functional as F
-from ssim import ssim
+from ssim import SSIM
 from geometrics import flow_warp, inverse_warp, pose2flow, mask_gen
 from collections import defaultdict
 
+get_ssim=SSIM().cuda()
 eps=1e-3
 
 def gradient(pred):
@@ -12,7 +13,7 @@ def gradient(pred):
     return dx, dy
 
 def upsample(src, shape):
-    return F.interpolate(src, shape, mode="bilinear")
+    return F.interpolate(src, shape, mode="bilinear",align_corners=False)
 
 
 # def mask(multi_scale, depth, pose, flow, intrinsics, intrinsics_inv):
@@ -40,22 +41,6 @@ def summerize(pred, target, cfg):
 
     for scale in range(len(weights['multi_scale'])):
         scale_weight = weights['multi_scale'][scale]
-        if cfg['use_depth']:
-            depthmap = upsample(pred['depthmap'][scale], (H, W))
-            depthmap.squeeze_(dim=1)
-            pose = pred['pose']
-            loss_dict['reprojection_loss'] += loss_reprojection(
-                depthmap, pose,
-                target['img_src'],
-                target['img_tgt'],
-                target['intrinsics'],
-                target['intrinsics_inv'],
-                # mask=pred['mask'],
-                weights=weights)*scale_weight
-
-            loss_dict['depth_smo'] += loss_smo(
-                depthmap, target['img_src'])*scale_weight
-
         if cfg['use_flow']:
             flowmap = upsample(pred['flowmap'][scale], (H, W))
             loss_dict['flow_consistency'] += loss_flow_consistency(
@@ -65,14 +50,34 @@ def summerize(pred, target, cfg):
                 weights=weights)*scale_weight
 
             loss_dict['flow_smo'] += loss_smo(
-                flowmap, target['img_src'],
-            )*scale_weight
+                flowmap, target['img_src'],)*scale_weight
+
+        if cfg['use_depth']:
+            depthmap = upsample(pred['depthmap'][scale], (H, W))
+            depthmap.squeeze_(dim=1)
+            pose = pred['pose']
+            rigid_flow = pose2flow(
+                depthmap, pose, target['intrinsics'], target['intrinsics_inv'])
+            mask = mask_gen(rigid_flow, flowmap) if cfg['use_mask'] else None
+            
+            loss_dict['reprojection_loss'] += loss_reprojection(
+                rigid_flow,
+                target['img_src'],
+                target['img_tgt'],
+                # target['intrinsics'],
+                # target['intrinsics_inv'],
+                mask=mask,
+                weights=weights)*scale_weight
+
+            loss_dict['depth_smo'] += loss_smo_edge_aware(
+                depthmap, target['img_src'])*scale_weight
+
 
         if cfg['use_disc']:
             pass
     
-    if cfg['use_mask']:
-        loss_dict['mask_loss']=(1-pred['mask']).mean()
+    # if cfg['use_mask']:
+    #     loss_dict['mask_loss']=(1-pred['mask']).mean()
 
     for k in weights.keys():
         if k in loss_dict.keys():
@@ -82,25 +87,24 @@ def summerize(pred, target, cfg):
 
 
 def loss_reconstruction(img_tgt, img_warped, weights, mask=None):
-    if mask is not None:
-        img_tgt = img_tgt*mask
-        img_warped = img_warped*mask
     
     valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
+    if mask is not None:
+        valid_area*=mask
+    # penalty not applied this time
     penalty=valid_area.nelement()/(valid_area.sum()+1.)
 
-    img_tgt=img_tgt*valid_area
-    ssim_value = 1-ssim(img_warped, img_tgt)
-    l1 = F.l1_loss(img_warped, img_tgt)
-    return penalty*(ssim_value * weights['ssim'] + l1 * weights['l1'])
+    l1=torch.abs(img_warped-img_tgt)
+    ssim_map = get_ssim(img_warped, img_tgt)
+    loss_map=(ssim_map * weights['ssim'] + l1 * weights['l1'])*valid_area
+    
+    return loss_map.mean()
 
 
-def loss_reprojection(depth, pose, img_src, img_tgt,
-                      intrinsics, intrinsics_inv, weights, mask=None,):
+def loss_reprojection(rigid_flow, img_src, img_tgt, weights, mask=None,):
     # B,_, H, W = depth.size()
     # depth = torch.squeeze(depth, dim=1)
-    img_tgt_warped = inverse_warp(
-        img_src, depth, pose, intrinsics, intrinsics_inv)
+    img_tgt_warped = flow_warp(img_src, rigid_flow)
     return loss_reconstruction(img_tgt, img_tgt_warped, weights, mask)
 
 
@@ -119,6 +123,7 @@ def loss_smo_edge_aware(tgt, img):
     loss_smo_x = torch.exp(-grad_image_x)*grad_target_x
     loss_smo_y = torch.exp(-grad_image_y)*grad_target_y
     return loss_smo_x.mean()+loss_smo_y.mean()
+
 
 def loss_smo(tgt,img):
     # B, _, H, W = tgt.size()

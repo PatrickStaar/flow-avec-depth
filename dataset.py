@@ -6,13 +6,14 @@ import cv2
 from path import Path
 from torch.utils.data import Dataset
 from kitti_utils import *
-
+import os
 
 
 class Kitti(Dataset):
-    def __init__(self,root, sample_list, input_size, intrinsics, 
+    def __init__(self,root, sample_list, input_size, 
         train=True, sequence=(-1,0),transform=None,target_transform=None, 
-        shuffle=True, with_depth=False, with_flow=False, with_pose=False,**kwargs):
+        shuffle=True, with_depth=False, with_flow=False, with_pose=False,
+        interp=False, with_default_intrinsics=False, **kwargs):
         
         super(Kitti, self).__init__()
 
@@ -29,29 +30,25 @@ class Kitti(Dataset):
         self.with_pose=with_pose
 
         self.files=self._read_from_txt(sample_list)
-        self.intrinsics=self._set_intrinsics(intrinsics)
+        self.intrinsics=self._set_intrinsics() if with_default_intrinsics else None
+        self.interp=interp
 
     def __len__(self):
         return len(self.files)
 
     def __getitem__(self, index):
         folder, frame_id, side=self.files[index].strip('\n').split()
-        # default collect_fn_ in dataloader do not allow None type value
-        inputs={
-            # 'intrinsics':None,
-            # 'intrinsics_inv':None,
-            # 'images':None,
-            # 'depth_gt':None,
-            # 'flow_gt':None,
-            # 'pose_gt':None,
-        }     
-        imgs=[]
         frame_id=int(frame_id)
-        # TODO: 读取连续帧的方法，同时使用多少帧，从txt文件中读取路径还是？文件的命名以及时间点的选择？
-        for i in self.sequence:
-            imgs.append(self.get_img(folder,frame_id+i,side))
-        
-        imgs, intrinsics = self.transform(imgs, np.copy(self.intrinsics))
+        # default collect_fn_ in dataloader do not allow None type value
+        inputs={}     
+        imgs=[self.get_img(folder,frame_id+i,side) for i in self.sequence]
+
+        if self.intrinsics: 
+            intrinsics = self.intrinsics  
+        else:
+            intrinsics = self._set_intrinsics(os.path.dirname(folder),cid='0{}'.format(self.cast[side]))
+
+        imgs, intrinsics = self.transform(imgs, np.copy(intrinsics))
         inputs['intrinsics']=intrinsics
         inputs['intrinsics_inv']=intrinsics.inverse()
         inputs['images']=imgs
@@ -77,7 +74,7 @@ class Kitti(Dataset):
             self.root,
             scene,
             "velodyne_points/data/{:010d}.bin".format(int(frame_id)))
-        depth_gt = generate_depth_map(calid_dir, velo_file, self.cast[side])
+        depth_gt = generate_depth_map(calid_dir, velo_file, self.cast[side],interp=self.interp)
         depth_gt = transform.resize(
             depth_gt, (self.H,self.W), order=0, preserve_range=True, mode='constant')
         return torch.from_numpy(depth_gt)
@@ -88,11 +85,14 @@ class Kitti(Dataset):
     def get_pose(self,scene,frame_id,side):
         raise NotImplementedError
 
-    def _set_intrinsics(self,intrinsics):
+    def _set_intrinsics(self,intrinsics=None,cid='02'):
         if intrinsics is not None:
             if isinstance(intrinsics,str):
-                intrinsics= np.genfromtxt(intrinsics).astype(np.float32)
-                intrinsics = intrinsics.reshape((3, 3))
+                calib_file = os.path.join(self.root, intrinsics, 'calib_cam_to_cam.txt')
+                filedata = read_calib_file(calib_file)
+                P_rect = np.reshape(filedata['P_rect_' + cid], (3, 4))
+                intrinsics = P_rect[:3, :3]
+                intrinsics = intrinsics.reshape((3, 3)).astype(np.float32)
             elif isinstance(intrinsics,np.float32):
                 intrinsics=intrinsics.reshape((3, 3))
         else:

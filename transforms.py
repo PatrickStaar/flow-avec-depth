@@ -86,9 +86,10 @@ class Scale(object):
     def __call__(self, images, intrinsics):
         assert intrinsics is not None
         in_h, in_w, _ = images[0].shape
+        output_intrinsics = np.copy(intrinsics)
 
-        intrinsics[0] *= (self.w / in_w)
-        intrinsics[1] *= (self.h / in_h)
-        scaled_images = [cv2.resize(im, (self.w, self.h),interpolation=cv2.INTER_CUBIC) for im in images]
+        output_intrinsics[0] *= (self.w / in_w)
+        output_intrinsics[1] *= (self.h / in_h)
+        scaled_images = [cv2.resize(im, (self.w, self.h)) for im in images]
 
-        return scaled_images, intrinsics
+        return scaled_images, output_intrinsics

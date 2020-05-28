@@ -15,12 +15,13 @@ config=dict(
             batch_size=1,
             sequence=(-1,0),
             input_size=(192,640),
-            intrinsics=None,
+            with_default_intrinsics=None,
             with_depth=True, 
             with_flow=False, 
             with_pose=False,
             shuffle=False,
             pin_memory=False,
+            interp=True
         )
     ),
 
@@ -67,11 +68,11 @@ config=dict(
         ),
     ),
 
-    output_dir='output100',
+    output_dir='outputs',
 
     save_pth='./checkpoints',
     pretrain=True,
-    pretrained_weights='./checkpoints/05.08.13.12.27_ep50.pt',
+    pretrained_weights='./checkpoints/05.15.22.00.03_ep20.pt',
     log='./checkpoints/log',
 
     # test

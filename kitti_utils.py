@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 import os
 import numpy as np
 from collections import Counter
+from scipy.interpolate import LinearNDInterpolator
 
 
 def load_velodyne_points(filename):
@@ -42,7 +43,18 @@ def sub2ind(matrixSize, rowSub, colSub):
     return rowSub * (n-1) + colSub - 1
 
 
-def generate_depth_map(calib_dir, velo_filename, cam=2, vel_depth=False):
+def lin_interp(shape, xyd):
+    # taken from https://github.com/hunse/kitti
+    m, n = shape
+    ij, d = xyd[:, 1::-1], xyd[:, 2]
+    f = LinearNDInterpolator(ij, d, fill_value=0)
+    J, I = np.meshgrid(np.arange(n), np.arange(m))
+    IJ = np.vstack([I.flatten(), J.flatten()]).T
+    disparity = f(IJ).reshape(shape)
+    return disparity
+
+
+def generate_depth_map(calib_dir, velo_filename, cam=2, vel_depth=False, interp=False):
     """Generate a depth map from velodyne data
     """
     # load calibration files
@@ -93,5 +105,10 @@ def generate_depth_map(calib_dir, velo_filename, cam=2, vel_depth=False):
         y_loc = int(velo_pts_im[pts[0], 1])
         depth[y_loc, x_loc] = velo_pts_im[pts, 2].min()
     depth[depth < 0] = 0
+
+    if interp:
+        # interpolate the depth map to fill in holes
+        depth_interp = lin_interp(im_shape, velo_pts_im)
+        return depth_interp
 
     return depth

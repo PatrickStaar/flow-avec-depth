@@ -14,6 +14,7 @@ from collections import defaultdict
 from train import get_loader 
 import cv2
 from path import Path
+from matplotlib import pyplot as plt
 
 
 def get_time():
@@ -68,6 +69,8 @@ def inference(net, dataloader, device, cfg, save_dir):
         img1 = input_dict['images'][1].to(device)
         intrinsics = input_dict['intrinsics'].to(device)
         intrinsics_inv = input_dict['intrinsics_inv'].to(device)
+        depth_gt=input_dict['depth_gt'].numpy().squeeze()
+        print('\nmax {}, min {}, mean {}'.format(depth_gt.max(), depth_gt.min(), depth_gt.mean()))
         
         depth, pose, flow = net([img0, img1])
 
@@ -91,11 +94,17 @@ def inference(net, dataloader, device, cfg, save_dir):
             color_map=flow_visualize(f)
 
             depth_map = depth_map.cpu().detach().numpy().transpose(1, 2, 0)
-            depth_map = 1./depth_map
-            depth_mean = depth_map.mean()
-            depth_map = depth_map*(50/depth_mean)
+            depth_map = depth_map*(depth_gt.mean()/depth_map.mean())
+            depth_map = np.clip(depth_map,0,80)
+            depth_map = depth_map.squeeze(axis=-1)
+            print('max {}, min {}, mean {}'.format(depth_map.max(), depth_map.min(), depth_map.mean()))
 
-            depth_map = np.clip(depth_map,0,255)
+
+            plt.imshow(depth_map,cmap=plt.cm.jet)
+            plt.imsave(save_dir/'{}_depth_color.jpg'.format(i),depth_map)
+            plt.imshow(depth_gt,cmap=plt.cm.jet)
+            plt.imsave(save_dir/'{}_depth_gt_color.jpg'.format(i),depth_gt)
+
 
             forward_tgt = post_process(img1)
             forward_src = post_process(img0)
@@ -103,7 +112,8 @@ def inference(net, dataloader, device, cfg, save_dir):
             
             cv2.imwrite(save_dir/'{}_forward_tgt.jpg'.format(i),forward_tgt)
             cv2.imwrite(save_dir/'{}_forward_src.jpg'.format(i),forward_src)            
-            cv2.imwrite(save_dir/'{}_depth_map.png'.format(i),depth_map)
+            cv2.imwrite(save_dir/'{}_depth_gt.png'.format(i),depth_gt)
+            cv2.imwrite(save_dir/'{}_depth.png'.format(i),depth_map)
             cv2.imwrite(save_dir/'{}_forward_depth_warped.jpg'.format(i), img_warped)
             cv2.imwrite(save_dir/'{}_rigid_flow_color.jpg'.format(i), color_map)
             flow_write(save_dir/('{}_rigid_flow.png'.format(i)),f)
@@ -149,7 +159,7 @@ net = PDF(**config['model'])
 net.to(device)
 # 是否导入预训练
 if config['pretrain']:
-    net.load_state_dict(torch.load(config['pretrained_weights']))
+    net.load_state_dict(torch.load(config['pretrained_weights']),strict=False)
 else:
     net.init_weights()
 # 设置优化器

@@ -5,8 +5,8 @@ from transforms import *
 config=dict(
     data=dict(
         train=dict(
-            root='./dataset/kitti',
-            sample_list='split/eigen_full/lite_train.txt',
+            root='/dataset/kitti',
+            sample_list='split/eigen_full/train_mod.txt',
             transform=Compose([
                 Scale(192,640),
                 RandomHorizontalFlip(),
@@ -22,8 +22,8 @@ config=dict(
             pin_memory=True,
         ),
         val=dict(
-            root='./dataset/kitti',
-            sample_list='split/eigen_full/lite_val.txt',
+            root='/dataset/kitti',
+            sample_list='split/eigen_full/val_mod.txt',
             transform=Compose([
                 Scale(192,640),
                 ArrayToTensor(),

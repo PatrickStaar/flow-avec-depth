@@ -69,20 +69,20 @@ def inference(net, dataloader, device, cfg, save_dir):
         img1 = input_dict['images'][1].to(device)
         intrinsics = input_dict['intrinsics'].to(device)
         intrinsics_inv = input_dict['intrinsics_inv'].to(device)
-        depth_gt=input_dict['depth_gt'].numpy().squeeze()
-        print('\nmax {}, min {}, mean {}'.format(depth_gt.max(), depth_gt.min(), depth_gt.mean()))
+        depth_gt=input_dict['depth_gt']#.numpy().squeeze()
+        
         
         depth, pose, flow = net([img0, img1])
 
         if depth is not None:
             depth_map = 1/(depth*cfg['depth_scale']+cfg['depth_eps'])
-
+            
             img_warped = inverse_warp(img0, depth_map.squeeze_(dim=1), pose, intrinsics, intrinsics_inv)
 
-            valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
+            # valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
 
             flow_rigid = pose2flow(depth_map, pose, intrinsics, intrinsics_inv)
-            # color_map_flow_rigid=flow_visualize(flow_rigid)
+            # color_map_flow_rigid=flow_visualize(flow_rigid.detach().cpu().numpy())
 
             img_warped = post_process(img_warped)
     
@@ -92,11 +92,21 @@ def inference(net, dataloader, device, cfg, save_dir):
             f = np.concatenate([f,np.ones((f.shape[0],f.shape[1],1))],axis=-1)
             
             color_map=flow_visualize(f)
-
-            depth_map = depth_map.cpu().detach().numpy().transpose(1, 2, 0)
-            depth_map = depth_map*(depth_gt.mean()/depth_map.mean())
-            depth_map = np.clip(depth_map,0,80)
+           
+            depth_map = depth_map.cpu().detach()
+            valid_area = 1 - (depth_gt == 0).type_as(depth_gt)
+            # pred=depth_map*valid_area
+            # print(valid_area.sum())
+            gt_mean = depth_gt.sum()/(valid_area.sum())
+            # pred_mean = pred.sum()/(valid_area.sum())
+        
+            
+            depth_map = depth_map/depth_map.max()*depth_gt.max()
+            depth_map = depth_map.numpy().transpose(1, 2, 0)
+            depth_map = np.clip(depth_map,0,200)
             depth_map = depth_map.squeeze(axis=-1)
+            depth_gt=depth_gt.numpy().squeeze()
+            print('\nmax {}, min {}, mean {}'.format(depth_gt.max(), depth_gt.min(), gt_mean.numpy()))
             print('max {}, min {}, mean {}'.format(depth_map.max(), depth_map.min(), depth_map.mean()))
 
 
@@ -114,16 +124,18 @@ def inference(net, dataloader, device, cfg, save_dir):
             cv2.imwrite(save_dir/'{}_forward_src.jpg'.format(i),forward_src)            
             cv2.imwrite(save_dir/'{}_depth_gt.png'.format(i),depth_gt)
             cv2.imwrite(save_dir/'{}_depth.png'.format(i),depth_map)
-            cv2.imwrite(save_dir/'{}_forward_depth_warped.jpg'.format(i), img_warped)
-            cv2.imwrite(save_dir/'{}_rigid_flow_color.jpg'.format(i), color_map)
-            flow_write(save_dir/('{}_rigid_flow.png'.format(i)),f)
+            cv2.imwrite(save_dir/'{}_forward_warped_by_depth.jpg'.format(i), img_warped)
+            # cv2.imwrite(save_dir/'{}_rigid_flow_color.jpg'.format(i), color_map)
+            plt.imsave(save_dir/'{}_flow_rigid_color.jpg'.format(i), color_map)
+
+            flow_write(save_dir/('{}_flow_rigid.png'.format(i)),f)
 
             
 
         if flow is not None:
         
             forward_warped = post_process(flow_warp(img0, flow))
-            cv2.imwrite(save_dir/'{}_forward_flow_warped.jpg'.format(i),forward_warped)    
+            cv2.imwrite(save_dir/'{}_forward_warped_by_flow.jpg'.format(i),forward_warped)    
         
             ## save flow to png file
             f = flow.cpu().detach().numpy().squeeze(0).transpose(1, 2, 0)
@@ -133,10 +145,14 @@ def inference(net, dataloader, device, cfg, save_dir):
             f = np.concatenate([f,np.ones((f.shape[0],f.shape[1],1))],axis=-1)
             color_map=flow_visualize(f)
             flow_write(save_dir/('{}_flow.png'.format(i)),f)
-            cv2.imwrite(save_dir/'{}_flow_color.jpg'.format(i), color_map)
+            
+            plt.imsave(save_dir/'{}_flow_color.jpg'.format(i), color_map)
 
 
 save_dir=Path(config['output_dir'])
+if not os.path.exists(save_dir):
+    os.mkdir(save_dir)
+
 val_loader = get_loader(**config['data']['val'])
 print('Data Loaded.')
 # TODO: 定义summary

@@ -138,7 +138,11 @@ def loss_depth(gt, pred):
     # B, _, H, W = p.size()
     # gt = torch.nn.functional.adaptive_avg_pool2d(gt, (H, W))
     pred.squeeze_(dim=1)
-    pred[gt==0]=0.0
+    valid_area = 1 - (gt == 0).prod(1, keepdim=True).type_as(gt)
+    pred*=valid_area
+    gt_mean = gt.sum()/(valid_area.sum())
+    pred_mean = pred.sum()/(valid_area.sum())
+    pred = pred/pred_mean*gt_mean
     loss = torch.abs(pred-gt).mean()
    # loss = F.l1_loss(pred,gt)
     return loss

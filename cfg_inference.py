@@ -6,7 +6,7 @@ config=dict(
     data=dict(
         val=dict(
             root='./dataset/kitti',
-            sample_list='split/lite/lite_val.txt',
+            sample_list='split/eigen_full/lite_val.txt',
             transform=Compose([
                 Scale(192,640),
                 ArrayToTensor(),
@@ -21,7 +21,7 @@ config=dict(
             with_pose=False,
             shuffle=False,
             pin_memory=False,
-            interp=True
+            interp=False
         )
     ),
 
@@ -51,8 +51,8 @@ config=dict(
         use_pose=False,
         use_disc=False,
         use_mask=False,
-        depth_scale=100,
-        depth_eps=0.01,
+        depth_scale=10,
+        depth_eps=0.1,
         weights=dict(
             reprojection_loss=1.,
             flow_consistency=1.,
@@ -72,7 +72,7 @@ config=dict(
 
     save_pth='./checkpoints',
     pretrain=True,
-    pretrained_weights='./checkpoints/05.15.22.00.03_ep20.pt',
+    pretrained_weights='./checkpoints/05.29.05.12.43_ep10.pt',
     log='./checkpoints/log',
 
     # test

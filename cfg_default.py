@@ -80,9 +80,9 @@ config=dict(
             flow_loss=0,
             pose_loss=0,
             disc=0, # Discriminator loss, not implemented for now.
-            multi_scale=[1/16,1/8,1/4,1/2,1],
+            multi_scale=[1, 1/4, 1/8, 1/16, 1/32],
             ssim=0.75,
-            l1=0.25,
+            l1=0.25
         ),
     ),
 

@@ -50,7 +50,7 @@ def make_message(loss_dict, head=''):
     return msg
 
 
-def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, optimizer_D=None):
+def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, optimizer_D=None,scheduler_D=None):
     net.train()
     eps = 1e-4
     loss_per_epoch = defaultdict(int)
@@ -84,6 +84,8 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
                         for d in depth_maps]
         depth_warped = [flow_warp(img0, f) for f in rigid_flow]
 
+        # TODO 加入对深度值的约束： between depth values warped from I1 to I0 and depth estimated for I0
+
         depth_disc_score = net_D(depth_warped[0])
 
         pred['depth_map'] = depth_maps
@@ -108,7 +110,7 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
         loss_per_iter['loss_G'].backward()
         optimizer.step()
 
-        # bring back discriminator
+        # bring back the discriminator
         
         optimizer_D.zero_grad()
         for param in net_D.parameters():
@@ -130,9 +132,6 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
 
         optimizer_D.step()
 
-        # TODO: 学习率调度需要实现
-        # scheduler.step(metrics=total_loss)
-
         loss_per_epoch = update(loss_per_epoch, loss_per_iter)
 
         process.set_description(make_message(loss_per_iter, '>'))
@@ -140,6 +139,8 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
     # calc average loss per epoch
     for k, v in loss_per_epoch.items():
         loss_per_epoch[k] = v/len(dataloader)
+    # TODO: 学习率调度需要实现
+    scheduler_D.step()
 
     return loss_per_epoch
 
@@ -225,8 +226,11 @@ if __name__ == "__main__":
     x = net_D.parameters()
     # 设置优化器
     opt = torch.optim.Adam(net.parameters(), lr=config['lr'])
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        opt, patience=2, factor=0.5, min_lr=1e-7, cooldown=1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        opt,[10,20,40,60],verbose=True
+    )
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+      #  opt, patience=2, factor=0.5, min_lr=1e-7, cooldown=1)
 
     opt_D = torch.optim.Adam(net_D.parameters(), lr=config['lr_D'])
     # TODO 定义判别器scheduler
@@ -248,8 +252,8 @@ if __name__ == "__main__":
         log.info(make_message(train_avg_loss, 'Epoch-{} Training Loss >>'.format(epoch+1)))
 
         # TODO 这里需要对G,D分别调节学习率
-
-        scheduler.step(train_avg_loss['loss_G'])
+        scheduler.step()
+        # scheduler.step(train_avg_loss['loss_G'])
 
         eval_avg_loss = eval(net, val_loader, device, config['losses'])
         log.info(make_message(eval_avg_loss, 'Epoch-{} Validation Loss >>'.format(epoch+1)))

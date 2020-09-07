@@ -10,7 +10,7 @@ from geometrics import inverse_warp, flow_warp, pose2flow, mask_gen, pose_vec2ma
 from losses import *
 # from tensorboardX import SummaryWriter
 from tqdm import tqdm
-from cfg_default import config
+from cfg_adv import config
 from collections import defaultdict
 from logger import get_logger
 
@@ -140,7 +140,8 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
     for k, v in loss_per_epoch.items():
         loss_per_epoch[k] = v/len(dataloader)
     # TODO: 学习率调度需要实现
-    scheduler_D.step()
+    if scheduler_D is not None:
+        scheduler_D.step()
 
     return loss_per_epoch
 
@@ -227,7 +228,7 @@ if __name__ == "__main__":
     # 设置优化器
     opt = torch.optim.Adam(net.parameters(), lr=config['lr'])
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        opt,[10,20,40,60],verbose=True
+        opt,[10,20,40,60],#verbose=True
     )
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
       #  opt, patience=2, factor=0.5, min_lr=1e-7, cooldown=1)

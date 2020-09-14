@@ -83,22 +83,19 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
         rigid_flow = [pose2flow(d.squeeze_(dim=1), pose,intrinsics, intrinsics_inv)
                         for d in depth_maps]
         depth_warped = [flow_warp(img0, f) for f in rigid_flow]
-
-        depth_disc_score = net_D(depth_warped[0])
-
+        # 先取消对深度合成图的disc 
+        # pred['depth_disc_score'] = net_D(depth_warped[0])
         pred['depth_map'] = depth_maps
         pred['depth_warped'] = depth_warped
-        pred['depth_disc_score'] = depth_disc_score
 
         # if cfg['use_flow']:
         flows = [upsample(f,(H,W)) for f in flows]
         flow_warped = [flow_warp(img0, upsample(f, (H, W))) for f in flows]
 
-        flow_disc_score = net_D(flow_warped[0])
 
         pred['flow_map'] = flows
         pred['flow_warped'] = flow_warped
-        pred['flow_disc_score'] = flow_disc_score
+        pred['flow_disc_score'] = net_D(flow_warped[0])
     
         mask = mask_gen(rigid_flow[0], flows[0]) if cfg['use_mask'] else None
         pred['mask'] = mask
@@ -118,10 +115,10 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
         loss_per_iter['loss_D_pos'] = loss_disc(target_D, torch.ones_like(target_D))
         loss_per_iter['loss_D_pos'].backward()
 
-        depth_warped[0].detach_()
-        depth_D = net_D(depth_warped[0])
-        loss_per_iter['loss_D_depth']=0.5*loss_disc(depth_D, torch.zeros_like(depth_D))
-        loss_per_iter['loss_D_depth'].backward()
+        # depth_warped[0].detach_()
+        # depth_D = net_D(depth_warped[0])
+        # loss_per_iter['loss_D_depth']=0.5*loss_disc(depth_D, torch.zeros_like(depth_D))
+        # loss_per_iter['loss_D_depth'].backward()
 
         flow_warped[0].detach_()
         flow_D = net_D(flow_warped[0])

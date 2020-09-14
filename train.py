@@ -86,11 +86,11 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
 
         # TODO 加入对深度值的约束： between depth values warped from I1 to I0 and depth estimated for I0
 
-        depth_disc_score = net_D(depth_warped[0])
+        # depth_disc_score = net_D(depth_warped[0])
 
         pred['depth_map'] = depth_maps
         pred['depth_warped'] = depth_warped
-        pred['depth_disc_score'] = depth_disc_score
+        # pred['depth_disc_score'] = depth_disc_score
 
         # if cfg['use_flow']:
         flows = [upsample(f,(H,W)) for f in flows]
@@ -120,10 +120,10 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
         loss_per_iter['loss_D_pos'] = loss_disc(target_D, torch.ones_like(target_D))
         loss_per_iter['loss_D_pos'].backward()
 
-        depth_warped[0].detach_()
-        depth_D = net_D(depth_warped[0])
-        loss_per_iter['loss_D_depth']=0.5*loss_disc(depth_D, torch.zeros_like(depth_D))
-        loss_per_iter['loss_D_depth'].backward()
+        # depth_warped[0].detach_()
+        # depth_D = net_D(depth_warped[0])
+        # loss_per_iter['loss_D_depth']=0.5*loss_disc(depth_D, torch.zeros_like(depth_D))
+        # loss_per_iter['loss_D_depth'].backward()
 
         flow_warped[0].detach_()
         flow_D = net_D(flow_warped[0])

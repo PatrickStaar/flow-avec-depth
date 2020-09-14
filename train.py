@@ -64,8 +64,9 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
         B, _, H, W = img0.size()
 
         # set discriminator
-        for param in net_D.parameters():
-            param.requires_grad = False
+        if net_D is not None:
+            for param in net_D.parameters():
+                param.requires_grad = False
 
         depth_maps, pose, flows = net([img0, img1])
 
@@ -96,11 +97,11 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
         flows = [upsample(f,(H,W)) for f in flows]
         flow_warped = [flow_warp(img0, upsample(f, (H, W))) for f in flows]
 
-        flow_disc_score = net_D(flow_warped[0])
+        # flow_disc_score = net_D(flow_warped[0])
 
         pred['flow_map'] = flows
         pred['flow_warped'] = flow_warped
-        pred['flow_disc_score'] = flow_disc_score
+        # pred['flow_disc_score'] = flow_disc_score
     
         mask = mask_gen(rigid_flow[0], flows[0]) if cfg['use_mask'] else None
         pred['mask'] = mask
@@ -111,26 +112,26 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
         optimizer.step()
 
         # bring back the discriminator
-        
-        optimizer_D.zero_grad()
-        for param in net_D.parameters():
-            param.requires_grad = True
+        if net_D is not None:
+            optimizer_D.zero_grad()
+            for param in net_D.parameters():
+                param.requires_grad = True
 
-        target_D = net_D(img0)
-        loss_per_iter['loss_D_pos'] = loss_disc(target_D, torch.ones_like(target_D))
-        loss_per_iter['loss_D_pos'].backward()
+            target_D = net_D(img0)
+            loss_per_iter['loss_D_pos'] = loss_disc(target_D, torch.ones_like(target_D))
+            loss_per_iter['loss_D_pos'].backward()
 
-        # depth_warped[0].detach_()
-        # depth_D = net_D(depth_warped[0])
-        # loss_per_iter['loss_D_depth']=0.5*loss_disc(depth_D, torch.zeros_like(depth_D))
-        # loss_per_iter['loss_D_depth'].backward()
+            # depth_warped[0].detach_()
+            # depth_D = net_D(depth_warped[0])
+            # loss_per_iter['loss_D_depth']=0.5*loss_disc(depth_D, torch.zeros_like(depth_D))
+            # loss_per_iter['loss_D_depth'].backward()
 
-        flow_warped[0].detach_()
-        flow_D = net_D(flow_warped[0])
-        loss_per_iter['loss_D_flow']= 0.5*loss_disc(flow_D, torch.zeros_like(flow_D))
-        loss_per_iter['loss_D_flow'].backward()
+            flow_warped[0].detach_()
+            flow_D = net_D(flow_warped[0])
+            loss_per_iter['loss_D_flow']= 0.5*loss_disc(flow_D, torch.zeros_like(flow_D))
+            loss_per_iter['loss_D_flow'].backward()
 
-        optimizer_D.step()
+            optimizer_D.step()
 
         loss_per_epoch = update(loss_per_epoch, loss_per_iter)
 
@@ -222,9 +223,8 @@ if __name__ == "__main__":
             config['pretrained_weights']), strict=False)
 
     # 定义discriminator
-    net_D = DCGAN_Discriminator(n_channel=3)
-    net_D.to(device)
-    x = net_D.parameters()
+    # net_D = DCGAN_Discriminator(n_channel=3)
+    # net_D.to(device)
     # 设置优化器
     opt = torch.optim.Adam(net.parameters(), lr=config['lr'])
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
       #  opt, patience=2, factor=0.5, min_lr=1e-7, cooldown=1)
 
-    opt_D = torch.optim.Adam(net_D.parameters(), lr=config['lr_D'])
+    # opt_D = torch.optim.Adam(net_D.parameters(), lr=config['lr_D'])
     # TODO 定义判别器scheduler
 
     log = get_logger(config['log'])
@@ -249,7 +249,7 @@ if __name__ == "__main__":
     for epoch in range(config['max_epoch']):
         # set to train mode
         train_avg_loss = train(net, train_loader, device, opt,
-                               config['losses'], net_D=net_D, optimizer_D=opt_D)  # net_D不写默认为不用判别器
+                               config['losses'], net_D=None, optimizer_D=None)  # net_D不写默认为不用判别器
         log.info(make_message(train_avg_loss, 'Epoch-{} Training Loss >>'.format(epoch+1)))
 
         # TODO 这里需要对G,D分别调节学习率

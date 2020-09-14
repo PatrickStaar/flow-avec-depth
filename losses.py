@@ -56,7 +56,7 @@ def summerize(pred, target, cfg):
                 pred['depth_map'][scale], target['img_src'])*scale_weight
             
     # loss_dict['depth_disc']+=loss_disc(pred['depth_disc_score'],torch.ones_like(pred['depth_disc_score']))
-    loss_dict['flow_disc']+=loss_disc(pred['flow_disc_score'],torch.ones_like(pred['flow_disc_score']))
+    # loss_dict['flow_disc']+=loss_disc(pred['flow_disc_score'],torch.ones_like(pred['flow_disc_score']))
     
     # if cfg['use_mask']:
     #     loss_dict['mask_loss']=(1-pred['mask']).mean()

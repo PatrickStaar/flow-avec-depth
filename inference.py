@@ -28,23 +28,23 @@ def get_time():
 def compute_errors(gt, pred):
     """Computation of error metrics between predicted and ground truth depths
     """
+    error_dict={}
     thresh = np.maximum((gt / pred), (pred / gt))
-    a1 = (thresh < 1.25     ).mean()
-    a2 = (thresh < 1.25 ** 2).mean()
-    a3 = (thresh < 1.25 ** 3).mean()
+    error_dict['a1'] = (thresh < 1.25     ).mean()
+    error_dict['a2'] = (thresh < 1.25 ** 2).mean()
+    error_dict['a3'] = (thresh < 1.25 ** 3).mean()
 
     rmse = (gt - pred) ** 2
-    rmse = np.sqrt(rmse.mean())
+    error_dict['rmse'] = np.sqrt(rmse.mean())
 
     rmse_log = (np.log(gt) - np.log(pred)) ** 2
-    rmse_log = np.sqrt(rmse_log.mean())
+    error_dict['rmse_log'] = np.sqrt(rmse_log.mean())
 
-    abs_rel = np.mean(np.abs(gt - pred) / gt)
+    error_dict['abs_rel'] = np.mean(np.abs(gt - pred) / gt)
 
-    sq_rel = np.mean(((gt - pred) ** 2) / gt)
+    error_dict['sq_rel'] = np.mean(((gt - pred) ** 2) / gt)
     
-    print(f'abs_rel: {abs_rel}\nsqrel: {sq_rel}\nrmse: {rmse}\nrmse log: {rmse_log}')
-    return abs_rel, sq_rel, rmse, rmse_log, a1, a2, a3
+    return error_dict
 
 
 def flow_visualize(flow):
@@ -89,6 +89,7 @@ def inference(net, dataloader, device, cfg, save_dir):
     eps = 1e-4
     net.eval()
     val_process = tqdm(enumerate(dataloader))
+    errors=defaultdict(float)
 
     for i, input_dict in val_process:
         img0 = input_dict['images'][0].to(device)
@@ -126,7 +127,6 @@ def inference(net, dataloader, device, cfg, save_dir):
             valid_area = np.logical_and(
                 depth_gt > MIN_DEPTH, depth_gt < MAX_DEPTH)
             gt_height, gt_width = depth_gt.shape
-            print(gt_height,gt_width)
             depth_map = cv2.resize(depth_map,(gt_width,gt_height))
 
             crop = np.array([0.40810811 * gt_height, 0.99189189 * gt_height,
@@ -138,17 +138,19 @@ def inference(net, dataloader, device, cfg, save_dir):
 
             pred_depth_vector = depth_map[valid_area]
             gt_depth_vector = depth_gt[valid_area]
-            print(f'gt均值：{gt_depth_vector.mean()}')
+            # print(f'gt均值：{gt_depth_vector.mean()}')
 
 
             median_ratio = np.median(gt_depth_vector) / \
                 np.median(pred_depth_vector)
             pred_depth_vector *= median_ratio
 
-            print('\npredict median: {}'.format(np.median(pred_depth_vector),np.median(gt_depth_vector)))
-            print('gt median: {}'.format(np.median(gt_depth_vector)))
+            # print('\npredict median: {}'.format(np.median(pred_depth_vector),np.median(gt_depth_vector)))
+            # print('gt median: {}'.format(np.median(gt_depth_vector)))
 
-            compute_errors(gt_depth_vector,pred_depth_vector)
+            error_dict=compute_errors(gt_depth_vector,pred_depth_vector)
+            for k,v in error_dict.items():
+                errors[k]+=v
 
             plt.imshow(depth_map, cmap=plt.cm.jet)
             plt.imsave(save_dir/'{}_depth_color.jpg'.format(i), depth_map)
@@ -186,6 +188,9 @@ def inference(net, dataloader, device, cfg, save_dir):
             flow_write(save_dir/('{}_flow.png'.format(i)), f)
 
             plt.imsave(save_dir/'{}_flow_color.jpg'.format(i), color_map)
+            
+    for k in errors.keys():
+        print(f'{k}: {errors[k]/len(dataloader)}')
 
 
 save_dir = Path(config['output_dir'])

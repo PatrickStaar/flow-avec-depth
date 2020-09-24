@@ -260,8 +260,8 @@ if __name__ == "__main__":
             filename = '{}_ep{}.pt'.format(get_time(), epoch+1)
             torch.save(net.state_dict(), f=os.path.join(save_pth, filename))
 
-        elif eval_avg_loss['loss'] < min_val_loss:
-            min_val_loss = eval_avg_loss['loss']
+        elif eval_avg_loss['rmse'] < min_val_loss:
+            min_val_loss = eval_avg_loss['rmse']
             filename = '{}_ep{}_val.pt'.format(get_time(), epoch+1)
             torch.save(net.state_dict(), f=os.path.join(save_pth, filename))
         else:

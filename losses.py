@@ -13,8 +13,31 @@ def gradient(pred):
     dx = torch.abs(pred[..., :, -1:] - pred[..., :, 1:])
     return dx, dy
 
+
 def upsample(src, shape):
     return F.interpolate(src, shape, mode="bilinear",align_corners=False)
+    
+
+def compute_errors(gt, pred):
+    """Computation of error metrics between predicted and ground truth depths
+    """
+    error_dict={}
+    thresh = np.maximum((gt / pred), (pred / gt))
+    error_dict['a1'] = (thresh < 1.25     ).mean()
+    error_dict['a2'] = (thresh < 1.25 ** 2).mean()
+    error_dict['a3'] = (thresh < 1.25 ** 3).mean()
+
+    rmse = (gt - pred) ** 2
+    error_dict['rmse'] = np.sqrt(rmse.mean())
+
+    rmse_log = (np.log(gt) - np.log(pred)) ** 2
+    error_dict['rmse_log'] = np.sqrt(rmse_log.mean())
+
+    error_dict['abs_rel'] = np.mean(np.abs(gt - pred) / gt)
+
+    error_dict['sq_rel'] = np.mean(((gt - pred) ** 2) / gt)
+    
+    return error_dict
 
 
 def summerize(pred, target, cfg):
@@ -113,18 +136,33 @@ def loss_disc(pred, gt):
     return bce_loss(pred,gt)
 
 # supervised
-def loss_depth(gt, pred):
-    # B, _, H, W = p.size()
-    # gt = torch.nn.functional.adaptive_avg_pool2d(gt, (H, W))
-    pred.squeeze_(dim=1)
-    valid_area = 1 - (gt == 0).prod(1, keepdim=True).type_as(gt)
-    pred*=valid_area
-    gt_mean = gt.sum()/(valid_area.sum())
-    pred_mean = pred.sum()/(valid_area.sum())
-    pred = pred/pred_mean*gt_mean
-    loss = torch.abs(pred-gt).mean()
-   # loss = F.l1_loss(pred,gt)
-    return loss
+P
+def evaluate_depth(gt, pred):
+    gt = gt['depth_gt'].numpy().squeeze()
+    pred = pred['depthmap'].cpu().detach().numpy().transpose(1, 2, 0)
+    pred= np.clip(pred, MIN_DEPTH, MAX_DEPTH).squeeze(axis=-1)
+
+    valid_area = np.logical_and(
+        gt > MIN_DEPTH, gt < MAX_DEPTH)
+    gt_height, gt_width = gt.shape
+    pred = cv2.resize(pred,(gt_width,gt_height))
+
+    crop = np.array([0.40810811 * gt_height, 0.99189189 * gt_height,
+                    0.03594771 * gt_width,  0.96405229 * gt_width]).astype(np.int32)
+
+    crop_mask = np.zeros(valid_area.shape)
+    crop_mask[crop[0]:crop[1], crop[2]:crop[3]] = 1
+    valid_area = np.logical_and(valid_area, crop_mask)
+
+    pred_depth_vector =pred[valid_area]
+    gt_depth_vector = gt[valid_area]
+    # print(f'gt均值：{gt_depth_vector.mean()}')
+
+
+    median_ratio = np.median(gt_depth_vector) / \
+        np.median(pred_depth_vector)
+    pred_depth_vector *= median_ratio
+    return compute_errors(gt_depth_vector,pred_depth_vector)
 
 
 def loss_flow(gt, pred):
@@ -143,23 +181,3 @@ def loss_flow(gt, pred):
 def loss_pose(gt, pred):         # [B,6]
     return F.l1_loss(pred,gt)
 
-
-def evaluate(gt, pred, cfg):
-    loss_dict = {}
-    loss=0.
-    if gt.get('depth_gt') is not None:
-        val_loss_depth=loss_depth(gt['depth_gt'], pred['depthmap'].to('cpu'))
-        loss_dict['depth_loss'] = val_loss_depth
-        loss+=val_loss_depth*cfg['depth_loss']
-    if gt.get('flow_gt') is not None:
-        loss_flow=loss_flow(gt['flow_gt'], pred['flowmap'])
-        loss_dict['flow_loss'] = loss_flow
-        loss+=loss_flow*cfg['flow_loss']
-    if gt.get('pose_gt') is not None:
-        loss_flow=loss_flow(gt['pose_gt'], pred['pose'])
-        loss_dict['pose_loss'] = loss_flow
-        loss+=loss_flow*cfg['pose_loss']
-
-    loss_dict['loss']=loss
-    
-    return loss_dict

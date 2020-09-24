@@ -39,13 +39,6 @@ def summerize(pred, target, cfg):
 
 
         if cfg['use_depth']:
-            # depthmap = upsample(pred['depthmap'][scale], (H, W))
-            # depthmap.squeeze_(dim=1)
-            # pose = pred['pose']
-            # rigid_flow = pose2flow(
-            #     depthmap, pose, target['intrinsics'], target['intrinsics_inv'])
-            # mask = mask_gen(rigid_flow, flowmap) if cfg['use_mask'] else None
-    
             loss_dict['reprojection_loss'] += loss_reconstruction(
                 pred['depth_warped'][scale],
                 target['img_tgt'],
@@ -73,12 +66,12 @@ def loss_reconstruction(img_tgt, img_warped, weights, mask=None):
     valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
     if mask is not None:
         valid_area*=mask
-    # penalty not applied this time
+
     penalty=valid_area.nelement()/(valid_area.sum()+1.)
 
     l1=torch.abs(img_warped-img_tgt)
     ssim_map = get_ssim(img_warped, img_tgt)
-    loss_map=(ssim_map * weights['ssim'] + l1 * weights['l1'])*valid_area
+    loss_map=(ssim_map * weights['ssim'] + l1 * weights['l1'])*valid_area*penalty
     
     return loss_map.mean()
 

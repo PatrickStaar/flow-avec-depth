@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from torch import nn
 from ssim import SSIM
 from geometrics import flow_warp, inverse_warp, pose2flow, mask_gen
 from collections import defaultdict
@@ -16,23 +17,6 @@ def upsample(src, shape):
     return F.interpolate(src, shape, mode="bilinear",align_corners=False)
 
 
-# def mask(multi_scale, depth, pose, flow, intrinsics, intrinsics_inv):
-#     masks = []
-#     d_t0, d_t1 = depth
-#     f_forward, f_backward = flow
-
-#     for s in range(multi_scale):
-#         flow_rigid_foward = pose2flow(
-#             d_t0[s], pose, intrinsics, intrinsics_inv)
-#         flow_rigid_backward = pose2flow(
-#             d_t1[s], -pose, intrinsics, intrinsics_inv)
-
-#         mask = mask_gen(f_forward[s], flow_rigid_foward)
-#         # mask1 = mask_gen(f_backward[s], flow_rigid_backward)
-#         masks.append((mask0, mask1))
-#     return masks
-
-
 def summerize(pred, target, cfg):
 
     loss_dict = defaultdict(float)
@@ -42,46 +26,37 @@ def summerize(pred, target, cfg):
     for scale in range(len(weights['multi_scale'])):
         scale_weight = weights['multi_scale'][scale]
         if cfg['use_flow']:
-            flowmap = upsample(pred['flowmap'][scale], (H, W))
-            loss_dict['flow_consistency'] += loss_flow_consistency(
-                flowmap,
-                target['img_src'],
+            # flowmap = upsample(pred['flowmap'][scale], (H, W))
+            loss_dict['flow_consistency'] += loss_reconstruction(
+                pred['flow_warped'][scale],
                 target['img_tgt'],
                 weights=weights)*scale_weight
 
-            loss_dict['flow_smo'] += loss_smo(
-                flowmap, target['img_src'],)*scale_weight
+            loss_dict['flow_smo'] += loss_smo_edge_aware(
+                pred['flow_map'][scale], 
+                target['img_src']
+                )*scale_weight
+
 
         if cfg['use_depth']:
-            depthmap = upsample(pred['depthmap'][scale], (H, W))
-            depthmap.squeeze_(dim=1)
-            pose = pred['pose']
-            rigid_flow = pose2flow(
-                depthmap, pose, target['intrinsics'], target['intrinsics_inv'])
-            mask = mask_gen(rigid_flow, flowmap) if cfg['use_mask'] else None
-            
-            loss_dict['reprojection_loss'] += loss_reprojection(
-                rigid_flow,
-                target['img_src'],
+            loss_dict['reprojection_loss'] += loss_reconstruction(
+                pred['depth_warped'][scale],
                 target['img_tgt'],
-                # target['intrinsics'],
-                # target['intrinsics_inv'],
-                mask=mask,
+                mask=pred['mask'],
                 weights=weights)*scale_weight
 
             loss_dict['depth_smo'] += loss_smo_edge_aware(
-                depthmap, target['img_src'])*scale_weight
-
-
-        if cfg['use_disc']:
-            pass
+                pred['depth_map'][scale], target['img_src'])*scale_weight
+            
+    # loss_dict['depth_disc']+=loss_disc(pred['depth_disc_score'],torch.ones_like(pred['depth_disc_score']))
+    # loss_dict['flow_disc']+=loss_disc(pred['flow_disc_score'],torch.ones_like(pred['flow_disc_score']))
     
     # if cfg['use_mask']:
     #     loss_dict['mask_loss']=(1-pred['mask']).mean()
 
     for k in weights.keys():
         if k in loss_dict.keys():
-            loss_dict['loss'] += loss_dict[k]*weights[k]
+            loss_dict['loss_G'] += loss_dict[k]*weights[k]
 
     return loss_dict
 
@@ -91,12 +66,12 @@ def loss_reconstruction(img_tgt, img_warped, weights, mask=None):
     valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
     if mask is not None:
         valid_area*=mask
-    # penalty not applied this time
+
     penalty=valid_area.nelement()/(valid_area.sum()+1.)
 
     l1=torch.abs(img_warped-img_tgt)
     ssim_map = get_ssim(img_warped, img_tgt)
-    loss_map=(ssim_map * weights['ssim'] + l1 * weights['l1'])*valid_area
+    loss_map=(ssim_map * weights['ssim'] + l1 * weights['l1'])*valid_area*penalty
     
     return loss_map.mean()
 
@@ -132,6 +107,10 @@ def loss_smo(tgt,img):
     dydx, dy2 = gradient(dy)
     return dx2.abs().mean() + dxdy.abs().mean() + dydx.abs().mean() + dy2.abs().mean()
 
+
+def loss_disc(pred, gt):
+    bce_loss = nn.BCELoss()
+    return bce_loss(pred,gt)
 
 # supervised
 def loss_depth(gt, pred):

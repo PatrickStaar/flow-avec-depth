@@ -23,6 +23,7 @@ class Kitti(Dataset):
         self.transform=transform
         self.target_transform=target_transform
         self.H, self.W=input_size
+        self.gt_H, self.gt_W=384,1280
         self.cast={'l':2,'r':3}
 
         self.with_depth=with_depth
@@ -76,7 +77,7 @@ class Kitti(Dataset):
             "velodyne_points/data/{:010d}.bin".format(int(frame_id)))
         depth_gt = generate_depth_map(calid_dir, velo_file, self.cast[side],interp=self.interp)
         depth_gt = transform.resize(
-            depth_gt, (self.H,self.W), order=0, preserve_range=True, mode='constant')
+            depth_gt, (self.gt_H,self.gt_W), order=0, preserve_range=True, mode='constant')
         return torch.from_numpy(depth_gt)
 
     def get_flow(self,scene,frame_id,side):

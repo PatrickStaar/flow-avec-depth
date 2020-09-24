@@ -180,16 +180,21 @@ def evaluate(opt):
 
     for i in range(pred_disps.shape[0]):
 
+        # 获得groundtruth 的尺寸
         gt_depth = gt_depths[i]
         gt_height, gt_width = gt_depth.shape[:2]
 
+        # resize 预测深度图像
         pred_disp = pred_disps[i]
         pred_disp = cv2.resize(pred_disp, (gt_width, gt_height))
         pred_depth = 1 / pred_disp
-
+        
+        # 获取掩码
         if opt.eval_split == "eigen":
+            # 逻辑与运算获得在约定范围内的gt
             mask = np.logical_and(gt_depth > MIN_DEPTH, gt_depth < MAX_DEPTH)
-
+            
+            # 裁减有效区域
             crop = np.array([0.40810811 * gt_height, 0.99189189 * gt_height,
                              0.03594771 * gt_width,  0.96405229 * gt_width]).astype(np.int32)
             crop_mask = np.zeros(mask.shape)

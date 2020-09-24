@@ -136,7 +136,7 @@ def loss_disc(pred, gt):
     return bce_loss(pred,gt)
 
 # supervised
-P
+
 def evaluate_depth(gt, pred):
     gt = gt['depth_gt'].numpy().squeeze()
     pred = pred['depthmap'].cpu().detach().numpy().transpose(1, 2, 0)

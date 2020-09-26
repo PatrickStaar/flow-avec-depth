@@ -10,7 +10,7 @@ from geometrics import inverse_warp, flow_warp, pose2flow, mask_gen, pose_vec2ma
 from losses import *
 # from tensorboardX import SummaryWriter
 from tqdm import tqdm
-from cfg_adv import config
+from cfg_default import config
 from collections import defaultdict
 from logger import get_logger
 
@@ -89,7 +89,7 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
 
         # if cfg['use_flow']:
         flows = [upsample(f,(H,W)) for f in flows]
-            flow_warped = [flow_warp(img0, f) for f in flows]
+        flow_warped = [flow_warp(img0, f) for f in flows]
         
         pred['depth_map'] = depth_maps
         pred['depth_warped'] = depth_warped
@@ -170,7 +170,7 @@ def eval(net, dataloader, device, cfg):
         )
 
         # 具体的validation loss计算的指标和输出的形式还需确定
-        loss_per_iter = evaluate(target, pred, cfg['weights'])
+        loss_per_iter = evaluate_depth(target, pred)
         val_process.set_description("evaluating..., ")
         loss_per_validation = update(loss_per_validation, loss_per_iter)
 
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     # 是否导入预训练
     if config['pretrain']:
         net.load_state_dict(torch.load(
-            config['pretrained_weights']), strict=False)
+            config['pretrained_weights']), strict=True)
 
     # 定义discriminator
     # net_D = DCGAN_Discriminator(n_channel=3)

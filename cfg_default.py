@@ -13,7 +13,7 @@ config=dict(
                 ArrayToTensor(),
                 Normalize(mean=[0.5,0.5,0.5], std = [0.5,0.5,0.5]),]),
             train=True,
-            batch_size=4,
+            batch_size=6,
             sequence=(-1,0),
             # rigid=True,
             input_size=(192,640),
@@ -58,7 +58,7 @@ config=dict(
     ),
     # optimizer
     max_epoch=50,
-    lr = 1e-4,
+    lr = 1e-6,
     lr_D = 1e-3,
     steps=100,
 
@@ -75,7 +75,7 @@ config=dict(
         weights=dict(
             reprojection_loss=1,
             flow_consistency=1,
-            depth_smo=0.1,
+            depth_smo=1,
             flow_smo=0.1,
             depth_loss=1,
             flow_loss=0,
@@ -90,8 +90,8 @@ config=dict(
     ),
 
     save_pth='./checkpoints',
-    pretrain=False,
-    pretrained_weights='./checkpoints/04.22.20.50.04_ep25.pt',
+    pretrain=True,
+    pretrained_weights='./checkpoints/09.21.01.36.24_ep60.pt',
     log = './checkpoints/log',
 
     # test

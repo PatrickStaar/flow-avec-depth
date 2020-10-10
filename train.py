@@ -43,6 +43,11 @@ def update(items, loss_dict):
     return items
 
 
+def update_eval(items, loss_dict):
+    for k,v in loss_dict.items():
+        items[k] += v
+    return items
+
 def make_message(loss_dict, head=''):
     msg = head
     for k, v in loss_dict.items():
@@ -155,7 +160,7 @@ def eval(net, dataloader, device, cfg):
 
         depth, pose, flow = net([img0, img1])
         depth = 1/(depth*cfg['depth_scale']+cfg['depth_eps'])
-
+        depth.squeeze_(dim=1)
         pred = dict(
             depthmap=depth,
             flowmap=flow,
@@ -171,8 +176,8 @@ def eval(net, dataloader, device, cfg):
 
         # 具体的validation loss计算的指标和输出的形式还需确定
         loss_per_iter = evaluate_depth(target, pred)
-        val_process.set_description("evaluating..., ")
-        loss_per_validation = update(loss_per_validation, loss_per_iter)
+        val_process.set_description('Evaluating...')
+        loss_per_validation = update_eval(loss_per_validation, loss_per_iter)
 
     for k, v in loss_per_validation.items():
         loss_per_validation[k] = v/len(dataloader)
@@ -245,14 +250,14 @@ if __name__ == "__main__":
         # set to train mode
         train_avg_loss = train(net, train_loader, device, opt,
                                config['losses'], net_D=None, optimizer_D=None)  # net_D不写默认为不用判别器
-        log.info(make_message(train_avg_loss, 'Epoch-{} Training Loss >>'.format(epoch+1)))
+        log.info(make_message(train_avg_loss, 'Epoch-{} Training Loss >> {}'.format(epoch+1,train_avg_loss['loss_G'])))
 
         # TODO 这里需要对G,D分别调节学习率
         scheduler.step()
         # scheduler.step(train_avg_loss['loss_G'])
 
         eval_avg_loss = eval(net, val_loader, device, config['losses'])
-        log.info(make_message(eval_avg_loss, 'Epoch-{} Validation Loss >>'.format(epoch+1)))
+        log.info(make_message(eval_avg_loss, 'Epoch-{} Validation Loss >> '.format(epoch+1)))
 
         # TODO 保存判别器模型
         if train_avg_loss['loss_G'] < min_loss:

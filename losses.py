@@ -4,9 +4,14 @@ from torch import nn
 from ssim import SSIM
 from geometrics import flow_warp, inverse_warp, pose2flow, mask_gen
 from collections import defaultdict
+import numpy as np
+import cv2
+
 
 get_ssim=SSIM().cuda()
 eps=1e-3
+MIN_DEPTH=1e-3
+MAX_DEPTH=80
 
 def gradient(pred):
     dy = torch.abs(pred[..., :-1, :] - pred[..., 1:, :])

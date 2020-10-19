@@ -8,8 +8,9 @@ config=dict(
             root='/dataset/kitti',
             sample_list='split/eigen_full/train_no_static.txt',
             transform=Compose([
-                Scale(192,640),
                 RandomHorizontalFlip(),
+                Scale(192,640),
+                Color(0.2,0.2,0.2,0.08),
                 ArrayToTensor(),
                 Normalize(mean=[0.5,0.5,0.5], std = [0.5,0.5,0.5]),]),
             train=True,
@@ -57,8 +58,8 @@ config=dict(
         
     ),
     # optimizer
-    max_epoch=50,
-    lr = 1e-6,
+    max_epoch=100,
+    lr = 1e-5,
     lr_D = 1e-3,
     steps=100,
 

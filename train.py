@@ -228,7 +228,7 @@ if __name__ == "__main__":
     # 设置优化器
     opt = torch.optim.Adam(net.parameters(), lr=config['lr'])
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        opt,[20,40,60],#verbose=True
+        opt,[40,80],#verbose=True
     )
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
       #  opt, patience=2, factor=0.5, min_lr=1e-7, cooldown=1)

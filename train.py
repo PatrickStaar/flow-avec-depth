@@ -223,8 +223,8 @@ if __name__ == "__main__":
             config['pretrained_weights']), strict=True)
 
     # 定义discriminator
-    # net_D = DCGAN_Discriminator(n_channel=3)
-    # net_D.to(device)
+    net_D = DCGAN_Discriminator(n_channel=3)
+    net_D.to(device)
     # 设置优化器
     opt = torch.optim.Adam(net.parameters(), lr=config['lr'])
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
@@ -234,6 +234,7 @@ if __name__ == "__main__":
       #  opt, patience=2, factor=0.5, min_lr=1e-7, cooldown=1)
 
     # opt_D = torch.optim.Adam(net_D.parameters(), lr=config['lr_D'])
+    opt_D = torch.optim.SGD(net_D.parameters(), lr=config['lr_D'])
     # TODO 定义判别器scheduler
 
     log = get_logger(config['log'])
@@ -249,7 +250,7 @@ if __name__ == "__main__":
     for epoch in range(config['max_epoch']):
         # set to train mode
         train_avg_loss = train(net, train_loader, device, opt,
-                               config['losses'], net_D=None, optimizer_D=None)  # net_D不写默认为不用判别器
+                               config['losses'], net_D=net_D, optimizer_D=opt_D)  # net_D不写默认为不用判别器
         log.info(make_message(train_avg_loss, 'Epoch-{} Training Loss >> {}'.format(epoch+1,train_avg_loss['loss_G'])))
 
         # TODO 这里需要对G,D分别调节学习率

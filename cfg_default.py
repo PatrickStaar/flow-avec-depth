@@ -6,7 +6,7 @@ config=dict(
     data=dict(
         train=dict(
             root='/dataset/kitti',
-            sample_list='split/eigen_full/train_mod.txt',
+            sample_list='split/eigen_full/train_no_static.txt',
             transform=Compose([
                 Scale(192,640),
                 RandomHorizontalFlip(),
@@ -23,7 +23,7 @@ config=dict(
         ),
         val=dict(
             root='/dataset/kitti',
-            sample_list='split/eigen_full/val_mod.txt',
+            sample_list='split/eigen_full/val_no_static.txt',
             transform=Compose([
                 Scale(192,640),
                 ArrayToTensor(),
@@ -75,7 +75,7 @@ config=dict(
         weights=dict(
             reprojection_loss=1,
             flow_consistency=1,
-            depth_smo=1,
+            depth_smo=0.1,
             flow_smo=0.1,
             depth_loss=1,
             flow_loss=0,
@@ -90,7 +90,7 @@ config=dict(
     ),
 
     save_pth='./checkpoints',
-    pretrain=True,
+    pretrain=False,
     pretrained_weights='./checkpoints/09.21.01.36.24_ep60.pt',
     log = './checkpoints/log',
 

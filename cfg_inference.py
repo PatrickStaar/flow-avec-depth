@@ -5,8 +5,8 @@ from transforms import *
 config=dict(
     data=dict(
         val=dict(
-            root='./dataset/kitti',
-            sample_list='split/eigen_full/lite_val.txt',
+            root='/dataset/kitti',
+            sample_list='split/eigen_full/val_no_static_lite.txt',
             transform=Compose([
                 Scale(192,640),
                 ArrayToTensor(),
@@ -56,7 +56,7 @@ config=dict(
         weights=dict(
             reprojection_loss=1.,
             flow_consistency=1.,
-            depth_smo=0,
+            depth_smo=0.1,
             flow_smo=0.1,
             depth_loss=1,
             flow_loss=0,
@@ -68,11 +68,11 @@ config=dict(
         ),
     ),
 
-    output_dir='outputs',
+    output_dir='outputs.10.06.1',
 
     save_pth='./checkpoints',
     pretrain=True,
-    pretrained_weights='./checkpoints/05.29.05.12.43_ep10.pt',
+    pretrained_weights='./checkpoints/10.06.17.22.39_ep38_val.pt',
     log='./checkpoints/log',
 
     # test

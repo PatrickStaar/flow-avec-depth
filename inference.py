@@ -127,7 +127,7 @@ def inference(net, dataloader, device, cfg, save_dir):
             valid_area = np.logical_and(
                 depth_gt > MIN_DEPTH, depth_gt < MAX_DEPTH)
             gt_height, gt_width = depth_gt.shape
-            depth_map = cv2.resize(depth_map,(gt_width,gt_height))
+            depth_map2 = cv2.resize(depth_map,(gt_width,gt_height))
 
             crop = np.array([0.40810811 * gt_height, 0.99189189 * gt_height,
                              0.03594771 * gt_width,  0.96405229 * gt_width]).astype(np.int32)
@@ -136,7 +136,7 @@ def inference(net, dataloader, device, cfg, save_dir):
             crop_mask[crop[0]:crop[1], crop[2]:crop[3]] = 1
             valid_area = np.logical_and(valid_area, crop_mask)
 
-            pred_depth_vector = depth_map[valid_area]
+            pred_depth_vector = depth_map2[valid_area]
             gt_depth_vector = depth_gt[valid_area]
             # print(f'gt均值：{gt_depth_vector.mean()}')
 
@@ -153,7 +153,7 @@ def inference(net, dataloader, device, cfg, save_dir):
                 errors[k]+=v
 
             plt.imshow(depth_map, cmap=plt.cm.jet)
-            plt.imsave(save_dir/'{}_depth_color.jpg'.format(i), depth_map)
+            plt.imsave(save_dir/'{}_depth_color.jpg'.format(i), 10/(depth_map*median_ratio))
             plt.imshow(depth_gt, cmap=plt.cm.jet)
             plt.imsave(save_dir/'{}_depth_gt_color.jpg'.format(i), depth_gt)
 
@@ -162,14 +162,14 @@ def inference(net, dataloader, device, cfg, save_dir):
 
             cv2.imwrite(save_dir/'{}_forward_tgt.jpg'.format(i), forward_tgt)
             cv2.imwrite(save_dir/'{}_forward_src.jpg'.format(i), forward_src)
-            cv2.imwrite(save_dir/'{}_depth_gt.png'.format(i), depth_gt)
+            # cv2.imwrite(save_dir/'{}_depth_gt.png'.format(i), depth_gt)
             cv2.imwrite(save_dir/'{}_depth.png'.format(i), depth_map*median_ratio)
             cv2.imwrite(
                 save_dir/'{}_forward_warped_by_depth.jpg'.format(i), img_warped)
             # cv2.imwrite(save_dir/'{}_rigid_flow_color.jpg'.format(i), color_map)
             plt.imsave(save_dir/'{}_flow_rigid_color.jpg'.format(i), color_map)
 
-            flow_write(save_dir/('{}_flow_rigid.png'.format(i)), f)
+            # flow_write(save_dir/('{}_flow_rigid.png'.format(i)), f)
 
         if flow is not None:
 
@@ -185,7 +185,7 @@ def inference(net, dataloader, device, cfg, save_dir):
             f = np.concatenate(
                 [f, np.ones((f.shape[0], f.shape[1], 1))], axis=-1)
             color_map = flow_visualize(f)
-            flow_write(save_dir/('{}_flow.png'.format(i)), f)
+            # flow_write(save_dir/('{}_flow.png'.format(i)), f)
 
             plt.imsave(save_dir/'{}_flow_color.jpg'.format(i), color_map)
             
@@ -232,12 +232,3 @@ print('Val Samples:', len(val_loader))
 
 inference(net, val_loader, device, config['losses'], save_dir)
 
-#     print('EP {} training loss:{:.6f} min:{:.6f}'.format(
-#         epoch, train_avg_loss, min_loss), file=log)
-#     print('EP {} validation loss:{:.6f} min:{:.6f}'.format(
-#         epoch, eval_avg_loss, min_val_loss), file=log)
-# log.close()
-# # except:
-# #     print('****Exception****', file=log)
-# #     log.close()
-# print('Training Done.')

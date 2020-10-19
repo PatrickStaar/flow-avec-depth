@@ -2,8 +2,7 @@ from __future__ import division
 import torch
 import random
 import numpy as np
-# from cv2 import imresize, imrotate
-import cv2
+from torchvision.transforms import functional as F 
 
 
 '''Set of tranform random routines that takes list of inputs as arguments,
@@ -23,13 +22,12 @@ class Compose(object):
 
 class Normalize(object):
     def __init__(self, mean, std):
-        self.mean = mean
-        self.std = std
+        self.mean = torch.as_tensor(mean)
+        self.std = torch.as_tensor(std)
 
     def __call__(self, images, intrinsics):
         for tensor in images:
-            for t, m, s in zip(tensor, self.mean, self.std):
-                t.sub_(m).div_(s)
+            tensor.sub_(self.mean[:,None,None]).div_(self.std[:,None,None])
         return images, intrinsics
 
 
@@ -52,12 +50,7 @@ class ArrayToTensor(object):
      to a list of torch.FloatTensor of shape (C x H x W) with a intrinsics tensor."""
 
     def __call__(self, images, intrinsics):
-        tensors = []
-        for im in images:
-            # put it from HWC to CHW format
-            im = np.transpose(im, (2, 0, 1))
-            # handle numpy array
-            tensors.append(torch.from_numpy(im).float()/255)          
+        tensors = [F.to_tensor(im) for im in images]
         return tensors, torch.from_numpy(intrinsics)
 
 
@@ -68,8 +61,8 @@ class RandomHorizontalFlip(object):
         assert intrinsics is not None
         if random.random() < 0.5:
             output_intrinsics = np.copy(intrinsics)
-            output_images = [np.copy(np.fliplr(im)) for im in images]
-            w = output_images[0].shape[1]
+            output_images = [F.hflip(im) for im in images]
+            w = output_images[0].size[1]
             output_intrinsics[0,2] = w - output_intrinsics[0,2]
         else:
             output_images = images
@@ -85,11 +78,45 @@ class Scale(object):
 
     def __call__(self, images, intrinsics):
         assert intrinsics is not None
-        in_h, in_w, _ = images[0].shape
+        in_w, in_h = images[0].size
+        # in_h, in_w, _ = images[0].shape
         output_intrinsics = np.copy(intrinsics)
 
         output_intrinsics[0] *= (self.w / in_w)
         output_intrinsics[1] *= (self.h / in_h)
-        scaled_images = [cv2.resize(im, (self.w, self.h)) for im in images]
+        scaled_images = [F.resize(im, (self.h, self.w)) for im in images]   
+        # scaled_images = [cv2.resize(im, (self.w, self.h)) for im in images]
 
         return scaled_images, output_intrinsics
+
+
+class Color(object):
+    def __init__(self,brightness,contrast,saturation,hue):
+        self.brightness=(1-brightness,1+brightness)
+        self.contrast=(1-contrast,1+contrast)
+        self.saturation=(1-saturation,1+saturation)
+        self.hue=(-hue,hue)
+
+    def __call__(self, imgs, intrinsics):
+
+        if random.uniform(0,1)<0.25:
+            brightness_factor = random.uniform(self.brightness[0], self.brightness[1])
+            imgs=self.jitter(imgs, brightness_factor, F.adjust_brightness)
+
+        if random.uniform(0,1)<0.25:
+            contrast_factor = random.uniform(self.contrast[0], self.contrast[1])
+            imgs=self.jitter(imgs, contrast_factor, F.adjust_contrast)
+
+        if random.uniform(0,1)<0.25:
+            saturation_factor = random.uniform(self.saturation[0], self.saturation[1])
+            imgs=self.jitter(imgs, saturation_factor, F.adjust_saturation)
+
+        if random.uniform(0,1)<0.25:
+            hue_factor = random.uniform(self.hue[0], self.hue[1])
+            imgs=self.jitter(imgs, hue_factor, F.adjust_hue)
+
+        return imgs, intrinsics
+
+    def jitter(self, imgs, factor, func):
+        return [func(img, factor) for img in imgs]
+   

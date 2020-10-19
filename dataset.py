@@ -6,6 +6,7 @@ import cv2
 from path import Path
 from torch.utils.data import Dataset
 from kitti_utils import *
+from PIL import Image
 import os
 
 
@@ -65,7 +66,8 @@ class Kitti(Dataset):
 
     def get_img(self,scene,frame_id,side,mode='.png'):
         path=os.path.join(self.root,scene,'image_0{}/data'.format(self.cast[side]), '{:010d}{}'.format(frame_id, mode))
-        img=self._load_as_float(path)
+        img = Image.open(path)
+        # img=self._load_as_float(path)
         return img 
 
     def get_depth(self,scene,frame_id,side):

@@ -52,36 +52,18 @@ def summerize(pred, target, cfg):
     B, _, H, W = target['img_src'].size()
 
     for scale in range(len(weights['multi_scale'])):
+
         scale_weight = weights['multi_scale'][scale]
-        if cfg['use_flow']:
-            # flowmap = upsample(pred['flowmap'][scale], (H, W))
-            loss_dict['flow_consistency'] += loss_reconstruction(
-                pred['flow_warped'][scale],
-                target['img_tgt'],
-                weights=weights)*scale_weight
 
-            loss_dict['flow_smo'] += loss_smo_edge_aware(
-                pred['flow_map'][scale], 
-                target['img_src']
-                )*scale_weight
+        loss_dict['reprojection_loss'] += loss_reconstruction(
+            pred['depth_warped'][scale],
+            target['img_tgt'],
+            mask=pred['mask'],
+            weights=weights)*scale_weight
 
-
-        if cfg['use_depth']:
-            loss_dict['reprojection_loss'] += loss_reconstruction(
-                pred['depth_warped'][scale],
-                target['img_tgt'],
-                mask=pred['mask'],
-                weights=weights)*scale_weight
-
-            loss_dict['depth_smo'] += loss_smo_edge_aware(
-                pred['depth_map'][scale], target['img_src'])*scale_weight
+        loss_dict['depth_smo'] += loss_smo_edge_aware(
+            pred['depth_map'][scale], target['img_src'])*scale_weight
             
-    # loss_dict['depth_disc']+=loss_disc(pred['depth_disc_score'],torch.ones_like(pred['depth_disc_score']))
-    # loss_dict['flow_disc']+=loss_disc(pred['flow_disc_score'],torch.ones_like(pred['flow_disc_score']))
-    
-    # if cfg['use_mask']:
-    #     loss_dict['mask_loss']=(1-pred['mask']).mean()
-
     for k in weights.keys():
         if k in loss_dict.keys():
             loss_dict['loss_G'] += loss_dict[k]*weights[k]
@@ -92,14 +74,11 @@ def summerize(pred, target, cfg):
 def loss_reconstruction(img_tgt, img_warped, weights, mask=None):
     
     valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
-    if mask is not None:
-        valid_area*=mask
-
     penalty=valid_area.nelement()/(valid_area.sum()+1.)
 
     l1=torch.abs(img_warped-img_tgt)
     ssim_map = get_ssim(img_warped, img_tgt)
-    loss_map=(ssim_map * weights['ssim'] + l1 * weights['l1'])*valid_area*penalty
+    loss_map=(ssim_map * weights['ssim'] + l1 * weights['l1'])*valid_area+0.01*penalty
     
     return loss_map.mean()
 
@@ -111,16 +90,10 @@ def loss_reprojection(rigid_flow, img_src, img_tgt, weights, mask=None,):
     return loss_reconstruction(img_tgt, img_tgt_warped, weights, mask)
 
 
-def loss_flow_consistency(flow, img_src, img_tgt, weights):
-    # B, _, H, W = flow.size()
-    img_warped = flow_warp(img_src, flow)
-    return loss_reconstruction(img_tgt, img_warped, weights)
-
-
 def loss_smo_edge_aware(tgt, img):
-    # B, _, H, W = tgt.size()
-    grad_target_x, grad_target_y = gradient(tgt)
-    grad_image_x, grad_image_y = gradient(img)
+    depth_normal=tgt.sub(tgt.mean()).div(tgt.std()+1e-5)
+    grad_target_x, grad_target_y = gradient(depth_normal)
+    grad_image_x, grad_image_y = gradient(img*128)
     grad_image_x = torch.mean(grad_image_x, 1, keepdim=True)
     grad_image_y = torch.mean(grad_image_y, 1, keepdim=True)
     loss_smo_x = torch.exp(-grad_image_x)*grad_target_x
@@ -168,19 +141,6 @@ def evaluate_depth(gt, pred):
         np.median(pred_depth_vector)
     pred_depth_vector *= median_ratio
     return compute_errors(gt_depth_vector,pred_depth_vector)
-
-
-def loss_flow(gt, pred):
-    _, _, h_pred, w_pred = pred.size()
-    bs, nc, h_gt, w_gt = gt.size()
-    u_gt, v_gt = gt[:, 0, :, :], gt[:, 1, :, :]
-    # resize to the gt
-    pred = F.upsample(pred, size=(h_gt, w_gt), mode='bilinear')
-    # mind the scale
-    u_pred = pred[:, 0, :, :] * (w_gt/w_pred)
-    v_pred = pred[:, 1, :, :] * (h_gt/h_pred)
-    dist = F.l1_loss(u_pred,u_gt) + F.l1_loss(v_pred,v_gt)
-    return dist
 
 
 def loss_pose(gt, pred):         # [B,6]

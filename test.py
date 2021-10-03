@@ -7,7 +7,7 @@ from transforms import *
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 import time
-from model import PDF
+from net import Model
 from geometrics import inverse_warp, flow_warp, pose2flow, mask_gen, pose_vec2mat
 from losses import *
 from tensorboardX import SummaryWriter

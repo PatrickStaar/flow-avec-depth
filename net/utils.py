@@ -1,7 +1,6 @@
 from torch import nn
 import torch as th
 import torch.nn.functional as F
-import torchvision
 
 
 def conv(in_channels, out_channels, k=3, stride=2, padding=1, 

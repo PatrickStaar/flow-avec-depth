@@ -1,6 +1,11 @@
 import torch
 import torch.nn as nn
-from torchvision.models.utils import load_state_dict_from_url
+import torch.utils.model_zoo as model_zoo
+
+__all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
+           'resnet152', 'resnext50_32x4d', 'resnext101_32x8d',
+           'wide_resnet50_2', 'wide_resnet101_2']
+
 
 model_urls = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
@@ -13,7 +18,6 @@ model_urls = {
     'wide_resnet50_2': 'https://download.pytorch.org/models/wide_resnet50_2-95faca4d.pth',
     'wide_resnet101_2': 'https://download.pytorch.org/models/wide_resnet101_2-32ee1156.pth',
 }
-
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
@@ -38,7 +42,6 @@ class BasicBlock(nn.Module):
             raise ValueError('BasicBlock only supports groups=1 and base_width=64')
         if dilation > 1:
             raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
-        
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = norm_layer(planes)
@@ -73,10 +76,8 @@ class Bottleneck(nn.Module):
     def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
                  base_width=64, dilation=1, norm_layer=None):
         super(Bottleneck, self).__init__()
-
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
-            
         width = int(planes * (base_width / 64.)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv1x1(inplanes, width)
@@ -114,12 +115,9 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
+    def __init__(self, block, layers, input_channels=3,num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None, 
-                 no_top=False, # added to skip the fc layer
-                 input_channels=3, # added to adapt to multi-images scenario
-                 ):
+                 norm_layer=None,no_top=False,multi_outputs=False):
 
         super(ResNet, self).__init__()
         if norm_layer is None:
@@ -129,6 +127,7 @@ class ResNet(nn.Module):
         self.input_channels=input_channels
         self.inplanes = 64
         self.dilation = 1
+        self.multi_outputs=multi_outputs
         if replace_stride_with_dilation is None:
             # each element in the tuple indicates if we should replace
             # the 2x2 stride with a dilated convolution instead
@@ -151,9 +150,9 @@ class ResNet(nn.Module):
                                        dilate=replace_stride_with_dilation[1])
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        if not self.no_top:
+            self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+            self.fc = nn.Linear(512 * block.expansion, num_classes)
         # save multi-scale features
 
         for m in self.modules():
@@ -166,6 +165,7 @@ class ResNet(nn.Module):
         # Zero-initialize the last BN in each residual branch,
         # so that the residual branch starts with zeros, and each residual block behaves like an identity.
         # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
+
         if zero_init_residual:
             for m in self.modules():
                 if isinstance(m, Bottleneck):
@@ -198,40 +198,64 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        xs=[]
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        f = self.maxpool(x)
+        xs.append(x)
 
-        f1 = self.layer1(f)
-        f2 = self.layer2(f1)
-        f3 = self.layer3(f2)
-        f4 = self.layer4(f3)
+        x = self.maxpool(x)
+        x1 = self.layer1(x)
+        xs.append(x1)
+        x2 = self.layer2(x1)
+        xs.append(x2)
+        x3 = self.layer3(x2)
+        xs.append(x3)
+        x4 = self.layer4(x3)
+        xs.append(x4)
 
         if not self.no_top:
-            y = self.avgpool(f4)
+            y = self.avgpool(x4)
             y = torch.flatten(y, 1)
             y = self.fc(y)
             return y
+        elif self.multi_outputs:
+            return xs
         else:
-            return [x,f1,f2,f3,f4]
+            return x4
 
 
-def _resnet(arch, block, layers, pretrained, progress, input_channels, pretrain_encoder, **kwargs):
-    model = ResNet(block, layers,input_channels=input_channels, **kwargs)
-    if pretrained:
-        # state_dict = load_state_dict_from_url(pretrain_encoder,progress=progress)
-        state_dict = torch.load(pretrain_encoder)
-        model.load_state_dict(state_dict,strict=False)
+def _resnet(arch, block, layers, **kwargs):
+    model = ResNet(block, layers, **kwargs)
     return model
 
 
-def resnet50(input_channels=3,pretrained=False, progress=True, pretrain_encoder='',**kwargs):
-    return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,input_channels,pretrain_encoder,**kwargs)
+def resnet50(pretrained=False, **kwargs):
+    model=_resnet('resnet50', Bottleneck, [3, 4, 6, 3], **kwargs)
+    if pretrained:
+        model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
+    return model
 
 
-def resnext50_32x4d(input_channels=3, pretrained=False, progress=True, **kwargs):
-    kwargs['groups'] = 32
-    kwargs['width_per_group'] = 4
-    return _resnet('resnext50_32x4d', Bottleneck, [3, 4, 6, 3],
-                   pretrained, progress, input_channels, **kwargs)
+def resnet18(pretrained=False, **kwargs):
+    r"""ResNet-18 model from
+    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    model=_resnet('resnet18', BasicBlock, [2, 2, 2, 2],  **kwargs)
+    if pretrained:
+        model.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
+    return model
+
+
+def resnet34(pretrained=False, **kwargs):
+    r"""ResNet-34 model from
+    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    model=_resnet('resnet34', BasicBlock, [3,4,6,3], **kwargs)
+    return model

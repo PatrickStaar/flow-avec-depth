@@ -178,7 +178,7 @@ def inverse_warp(img, depth, pose, intrinsics, intrinsics_inv, rotation_mode='eu
     src_pixel_coords = cam2pixel(
         cam_coords, proj_cam_to_src_pixel[:, :, :3], proj_cam_to_src_pixel[:, :, -1:], padding_mode)  # [B,H,W,2]
     projected_img = torch.nn.functional.grid_sample(
-        img, src_pixel_coords, padding_mode=padding_mode,align_corners=False)
+        img, src_pixel_coords, padding_mode=padding_mode)
 
     return projected_img
 
@@ -220,7 +220,7 @@ def flow_warp(img, flow, padding_mode='zeros'):
     
     grid_tf = torch.stack((X, Y), dim=3)
     img_tf = torch.nn.functional.grid_sample(
-        img, grid_tf, padding_mode=padding_mode,align_corners=False)
+        img, grid_tf, padding_mode=padding_mode)
 
     return img_tf
 

@@ -1,9 +1,6 @@
-import random
 import numpy as np
 import torch
 from skimage import io, transform
-import cv2
-from path import Path
 from torch.utils.data import Dataset
 from kitti_utils import *
 from PIL import Image

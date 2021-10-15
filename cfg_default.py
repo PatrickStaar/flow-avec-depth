@@ -2,6 +2,9 @@ from path import Path
 import numpy as np
 from transforms import *
 
+#ps -a | awk '/.*python$/ {print $1}'|while read line;do sudo renice -16 -p $line; done
+#ps -a | awk '/.*python$/ {print $1}'|while read line;do sudo ionice -c 0 -p $line; done
+
 config=dict(
     data=dict(
         train=dict(
@@ -14,14 +17,14 @@ config=dict(
                 ArrayToTensor(),
                 Normalize(mean=[0.5,0.5,0.5], std = [0.5,0.5,0.5]),]),
             train=True,
-            batch_size=6,
+            batch_size=36,
             sequence=(-1,0),
             # rigid=True,
             input_size=(192,640),
             with_default_intrinsics=None,
             shuffle=True,
-            pin_memory=True,
-            workers=4
+            pin_memory=False,
+            workers=12
         ),
         val=dict(
             root='/dataset/KITTI',
@@ -40,7 +43,7 @@ config=dict(
             with_pose=False,
             shuffle=False,
             pin_memory=True,
-            workers=1
+            workers=12
         )
     ),
 
@@ -57,29 +60,28 @@ config=dict(
         pose='pretrain/resnet18.pth',
     ),
     # optimizer
-    max_epoch=100,
+    max_epoch=150,
     lr = 1e-4,
-    steps=100,
 
     # losses
     losses=dict(
-        use_mask=True,
+        use_mask=False,
         depth_scale=10,
         multi_scale=5,
         depth_eps=0.1,
         weights=dict(
             reprojection_loss=1,
-            depth_smo=0.001,
+            depth_smo=0.01,
             depth_loss=1,
             pose_loss=0,
             multi_scale=[1,1/4,1/16,1/64],
-            ssim=0.75,
-            l1=0.25
+            ssim=0.5,
+            l1=0.5
         ),
     ),
 
     save_pth='./checkpoints',
-    eval_weights='./checkpoints/09.21.01.36.24_ep60.pt',
+    eval_weights='./checkpoints/best_smooth_1.pth',
     log = './checkpoints/log',
 
     # test

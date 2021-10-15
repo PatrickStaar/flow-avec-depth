@@ -5,7 +5,7 @@ import time
 import os
 
 from net import Model
-from geometrics import flow_warp, pose2flow, mask_gen,inverse_warp 
+from geometrics import inverse_warp 
 from losses import *
 from tqdm import tqdm
 from cfg_default import config
@@ -204,7 +204,8 @@ if __name__ == "__main__":
         torch.save(net.state_dict(), f=os.path.join(save_pth, filename))
 
         if eval_avg_loss['rmse'] < min_val_loss:
-            torch.save(net.state_dict(), f=os.path.join(save_pth, 'best.pth'))
+            min_val_loss=eval_avg_loss['rmse']
+            torch.save(net.state_dict(), f=config['eval_weights'])
             log.info(f'Save epoch {epoch} as the best.')
 
     log.info('Training Done.')

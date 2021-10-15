@@ -1,16 +1,16 @@
-from torch import nn
 import torch as th
-import torch.nn.functional as F
+from torch import nn
 
 
 def conv(in_channels, out_channels, k=3, stride=2, padding=1, 
         output=False, activation='leaky', bn=False):
-    layer=nn.Conv2d(in_channels, out_channels, k, stride, padding, bias=False,)
-    if output:
-        return layer    
-    else:
-        act = nn.LeakyReLU(0.1,inplace=True) if activation=='leaky' else nn.ReLU()
-        return nn.Sequential(layer, act) # without nn.BatchNorm2d(out_channels)
+    layers=[]
+    layers.append(nn.Conv2d(in_channels, out_channels, k, stride, padding, bias=False))
+    if bn:
+        layers.append(nn.BatchNorm2d(out_channels))
+    if not output:
+        layers.append(nn.LeakyReLU(0.1,inplace=True) if activation=='leaky' else nn.ReLU())
+    return nn.Sequential(*layers)
                         
 
 def deconv(in_channels, out_channels):
@@ -20,7 +20,7 @@ def deconv(in_channels, out_channels):
         # 因此 output_padding 一般取 stride-1，同时 padding 取 (kernel_size - 1)/2
         nn.ConvTranspose2d(in_channels, out_channels, kernel_size=3,
                            stride=2, padding=1, output_padding=1, bias=False),
-        # without nn.BatchNorm2d(cfg[1]),
+        # nn.BatchNorm2d(out_channels),
         nn.LeakyReLU(0.1,inplace=True) #nn.ReLU()
     )
 

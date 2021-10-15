@@ -5,8 +5,8 @@ from transforms import *
 config=dict(
     data=dict(
         val=dict(
-            root='/dataset/kitti',
-            sample_list='split/eigen_full/val_no_static_lite.txt',
+            root='/dataset/KITTI',
+            sample_list='split/eigen_full/val_no_static.txt',
             transform=Compose([
                 Scale(192,640),
                 ArrayToTensor(),
@@ -21,7 +21,8 @@ config=dict(
             with_pose=False,
             shuffle=False,
             pin_memory=False,
-            interp=False
+            interp=False,
+            workers=12
         )
     ),
 
@@ -33,17 +34,10 @@ config=dict(
 
     # parameters
     # model
-    model=dict(
-        use_depth=True,
-        use_flow=True,
-        use_pose=True,
-        pretrain_encoder='pretrain/resnet50_mod.pth',
+    pretrained_weights=dict(
+        depth='pretrain/resnet50.pth',
+        pose='pretrain/resnet18.pth',
     ),
-    # optimizer
-    max_epoch=20,
-    lr = 1e-3,
-    steps=100,
-
     # losses
     losses=dict(
         use_depth=False,
@@ -68,11 +62,10 @@ config=dict(
         ),
     ),
 
-    output_dir='outputs.10.06.1',
+    output_dir='outputs.21.10.pure.smo',
 
     save_pth='./checkpoints',
-    pretrain=True,
-    pretrained_weights='./checkpoints/10.06.17.22.39_ep38_val.pt',
+    eval_weights='./checkpoints/10.12.04.27.41_ep100.pt',
     log='./checkpoints/log',
 
     # test

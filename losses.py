@@ -2,7 +2,6 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from ssim import SSIM
-from geometrics import flow_warp, inverse_warp, pose2flow, mask_gen
 from collections import defaultdict
 import numpy as np
 import cv2
@@ -14,8 +13,8 @@ MIN_DEPTH=1e-3
 MAX_DEPTH=80
 
 def gradient(pred):
-    dy = torch.abs(pred[..., :-1, :] - pred[..., 1:, :])
-    dx = torch.abs(pred[..., :, -1:] - pred[..., :, 1:])
+    dy = pred[..., :-1, :] - pred[..., 1:, :]
+    dx = pred[..., :, -1:] - pred[..., :, 1:]
     return dx, dy
 
 
@@ -49,12 +48,9 @@ def summerize(pred, target, cfg):
 
     loss_dict = defaultdict(float)
     weights = cfg['weights']
-    B, _, H, W = target['img_src'].size()
 
-    for scale in range(len(weights['multi_scale'])):
-
+    for scale in range(len(pred['depth_warped'])):
         scale_weight = weights['multi_scale'][scale]
-
         loss_dict['reprojection_loss'] += loss_reconstruction(
             pred['depth_warped'][scale],
             target['img_tgt'],
@@ -83,23 +79,34 @@ def loss_reconstruction(img_tgt, img_warped, weights, mask=None):
     return loss_map.mean()
 
 
-def loss_reprojection(rigid_flow, img_src, img_tgt, weights, mask=None,):
-    # B,_, H, W = depth.size()
-    # depth = torch.squeeze(depth, dim=1)
-    img_tgt_warped = flow_warp(img_src, rigid_flow)
-    return loss_reconstruction(img_tgt, img_tgt_warped, weights, mask)
+# def loss_reprojection(rigid_flow, img_src, img_tgt, weights, mask=None,):
+#     # B,_, H, W = depth.size()
+#     # depth = torch.squeeze(depth, dim=1)
+#     img_tgt_warped = flow_warp(img_src, rigid_flow)
+#     return loss_reconstruction(img_tgt, img_tgt_warped, weights, mask)
 
+
+# def loss_smo_edge_aware(tgt, img):
+#     depth_normal=tgt.sub(tgt.mean()).div(tgt.std()+1e-5)
+#     grad_target_x, grad_target_y = gradient(depth_normal)
+#     # grad_image_x, grad_image_y = gradient(img*128)
+#     # grad_image_x = torch.mean(grad_image_x, 1, keepdim=True)
+#     # grad_image_y = torch.mean(grad_image_y, 1, keepdim=True)
+#     # loss_smo_x = torch.exp(-grad_image_x)*grad_target_x
+#     # loss_smo_y = torch.exp(-grad_image_y)*grad_target_y
+#     return grad_target_x.mean()+grad_target_y.mean()
 
 def loss_smo_edge_aware(tgt, img):
-    depth_normal=tgt.sub(tgt.mean()).div(tgt.std()+1e-5)
-    grad_target_x, grad_target_y = gradient(depth_normal)
-    grad_image_x, grad_image_y = gradient(img*128)
-    grad_image_x = torch.mean(grad_image_x, 1, keepdim=True)
-    grad_image_y = torch.mean(grad_image_y, 1, keepdim=True)
-    loss_smo_x = torch.exp(-grad_image_x)*grad_target_x
-    loss_smo_y = torch.exp(-grad_image_y)*grad_target_y
-    return loss_smo_x.mean()+loss_smo_y.mean()
-
+    # depth_normal=tgt.sub(tgt.mean()).div(tgt.std()+1e-5)
+    dx, dy = gradient(tgt)
+    dx2, dxdy = gradient(dx)
+    _, dy2 = gradient(dy)
+    return dx2.abs().mean()+dxdy.abs().mean()+dy2.abs().mean()
+    # grad_image_x, grad_image_y = gradient(img*128)
+    # grad_image_x = torch.mean(grad_image_x, 1, keepdim=True)
+    # grad_image_y = torch.mean(grad_image_y, 1, keepdim=True)
+    # loss_smo_x = torch.exp(-grad_image_x)*grad_target_x
+    # loss_smo_y = torch.exp(-grad_image_y)*grad_target_y
 
 def loss_smo(tgt,img):
     # B, _, H, W = tgt.size()
@@ -109,9 +116,9 @@ def loss_smo(tgt,img):
     return dx2.abs().mean() + dxdy.abs().mean() + dydx.abs().mean() + dy2.abs().mean()
 
 
-def loss_disc(pred, gt):
-    bce_loss = nn.BCELoss()
-    return bce_loss(pred,gt)
+# def loss_disc(pred, gt):
+#     bce_loss = nn.BCELoss()
+#     return bce_loss(pred,gt)
 
 # supervised
 

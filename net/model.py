@@ -14,7 +14,7 @@ class Model(nn.Module):
         self.pose_net = Pose()
 
     def forward(self, inputs):
-        depth_map = self.depth_net(inputs[0])
+        depth_map = self.depth_net(inputs[1])
         pose = self.pose_net(cat(inputs))
         return depth_map if self.training else depth_map[0], pose
 

@@ -16,4 +16,5 @@
 *.png
 /outputs/*
 *result*
-
+/davos/hrnet/*
+/davos/pwc/*

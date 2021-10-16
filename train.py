@@ -11,6 +11,7 @@ from tqdm import tqdm
 from cfg_default import config
 from collections import defaultdict
 from logger import get_logger
+from davos import Mask
 
 
 def get_time():
@@ -96,7 +97,7 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
         # TODO 加入对深度值的约束： between depth values warped from I1 to I0 and depth estimated for I0
         pred['depth_map'] = depth_maps
         pred['depth_warped'] = depth_warped
-        pred['mask'] = None # if not cfg['use_mask'] else mask_gen()
+        pred['mask'] = None if not cfg['use_mask'] else mask_gen.get([img0,img1]) 
    
         loss_per_iter = summerize(pred, target, cfg)
         optimizer.zero_grad()
@@ -171,6 +172,8 @@ if __name__ == "__main__":
 
     date = time.strftime('%y.%m.%d')
     save_pth = config['save_pth']
+
+    mask_gen=Mask()
 
     net = Model()
     net.to(device)

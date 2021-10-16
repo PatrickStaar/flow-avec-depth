@@ -71,6 +71,8 @@ def loss_reconstruction(img_tgt, img_warped, weights, mask=None):
     
     valid_area = 1 - (img_warped == 0).prod(1, keepdim=True).type_as(img_warped)
     penalty=valid_area.nelement()/(valid_area.sum()+1.)
+    if mask is not None:
+        valid_area *=mask
 
     l1=torch.abs(img_warped-img_tgt)
     ssim_map = get_ssim(img_warped, img_tgt)

@@ -65,9 +65,7 @@ class Mask:
             self.encoder([normalize(interp(img0.clone(),size=_size)), normalize(flow.clone())])[0])
         mask=interp(torch.sigmoid(mask).detach_(),size=(H,W))
         
-        if self.to_numpy:
-            mask=mask.squeeze_(0).squeeze_(0).cpu().numpy()
-        return mask
+        return 1-mask
     
    
             

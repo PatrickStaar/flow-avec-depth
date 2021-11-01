@@ -62,7 +62,7 @@ class RandomHorizontalFlip(object):
         if random.random() < 0.5:
             output_intrinsics = np.copy(intrinsics)
             output_images = [F.hflip(im) for im in images]
-            w = output_images[0].size[1]
+            w = output_images[0].width
             output_intrinsics[0,2] = w - output_intrinsics[0,2]
         else:
             output_images = images

@@ -15,7 +15,7 @@ MAX_DEPTH=80
 def gradient(pred):
     dy = pred[..., :-1, :] - pred[..., 1:, :]
     dx = pred[..., :, -1:] - pred[..., :, 1:]
-    return dx, dy
+    return torch.abs(dx), torch.abs(dy)
 
 
 def upsample(src, shape):
@@ -57,9 +57,9 @@ def summerize(pred, target, cfg):
             mask=pred['mask'],
             weights=weights)*scale_weight
 
-        loss_dict['depth_smo'] += loss_smo_edge_aware(
-            pred['depth_map'][scale], target['img_src'])*scale_weight
-            
+        loss_dict['depth_smo'] += (
+            loss_smo_edge_aware(pred['depth_map'][scale], target['img_src'])*scale_weight)
+
     for k in weights.keys():
         if k in loss_dict.keys():
             loss_dict['loss_G'] += loss_dict[k]*weights[k]
@@ -76,7 +76,7 @@ def loss_reconstruction(img_tgt, img_warped, weights, mask=None):
 
     l1=torch.abs(img_warped-img_tgt)
     ssim_map = get_ssim(img_warped, img_tgt)
-    loss_map=(ssim_map * weights['ssim'] + l1 * weights['l1'])*valid_area+0.01*penalty
+    loss_map=(ssim_map * weights['ssim'] + l1 * weights['l1'])*valid_area+0.001*penalty
     
     return loss_map.mean()
 
@@ -99,16 +99,15 @@ def loss_reconstruction(img_tgt, img_warped, weights, mask=None):
 #     return grad_target_x.mean()+grad_target_y.mean()
 
 def loss_smo_edge_aware(tgt, img):
-    # depth_normal=tgt.sub(tgt.mean()).div(tgt.std()+1e-5)
-    dx, dy = gradient(tgt)
-    dx2, dxdy = gradient(dx)
-    _, dy2 = gradient(dy)
-    return dx2.abs().mean()+dxdy.abs().mean()+dy2.abs().mean()
-    # grad_image_x, grad_image_y = gradient(img*128)
-    # grad_image_x = torch.mean(grad_image_x, 1, keepdim=True)
-    # grad_image_y = torch.mean(grad_image_y, 1, keepdim=True)
-    # loss_smo_x = torch.exp(-grad_image_x)*grad_target_x
-    # loss_smo_y = torch.exp(-grad_image_y)*grad_target_y
+    depth_normal=tgt/(tgt.mean(-1,True).mean(-2,True)+1e-7)
+
+    dx, dy = gradient(depth_normal)
+    grad_image_x, grad_image_y = gradient(img*5)
+
+    dx *= torch.exp(-grad_image_x.mean(1, False))
+    dy *= torch.exp(-grad_image_y.mean(1, False))
+
+    return dx.mean()+dy.mean()
 
 def loss_smo(tgt,img):
     # B, _, H, W = tgt.size()

@@ -17,14 +17,14 @@ config=dict(
                 ArrayToTensor(),
                 Normalize(mean=[0.5,0.5,0.5], std = [0.5,0.5,0.5]),]),
             train=True,
-            batch_size=36,
+            batch_size=32,
             sequence=(-1,0),
             # rigid=True,
             input_size=(192,640),
             with_default_intrinsics=None,
             shuffle=True,
             pin_memory=False,
-            workers=12
+            workers=16
         ),
         val=dict(
             root='/dataset/KITTI',
@@ -60,12 +60,12 @@ config=dict(
         pose='pretrain/resnet18.pth',
     ),
     # optimizer
-    max_epoch=150,
+    max_epoch=100,
     lr = 1e-4,
 
     # losses
     losses=dict(
-        use_mask=False,
+        use_mask=True,
         depth_scale=10,
         multi_scale=5,
         depth_eps=0.1,
@@ -75,13 +75,13 @@ config=dict(
             depth_loss=1,
             pose_loss=0,
             multi_scale=[1,1/4,1/16,1/64],
-            ssim=0.5,
-            l1=0.5
+            ssim=0.85,
+            l1=0.15
         ),
     ),
 
     save_pth='./checkpoints',
-    eval_weights='./checkpoints/best_smooth_1.pth',
+    eval_weights='./checkpoints/best_mask.pth',
     log = './checkpoints/log',
 
     # test

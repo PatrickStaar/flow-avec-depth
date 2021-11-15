@@ -64,7 +64,12 @@ class Mask:
         mask = self.decoder(
             self.encoder([normalize(interp(img0.clone(),size=_size)), normalize(flow.clone())])[0])
         mask=interp(torch.sigmoid(mask).detach_(),size=(H,W))
-        
+
+        # limit mask range
+        mask[mask<0.5]=0
+        mask[...,0:W//3]*=0
+        mask[...,W//3*2:]*=0
+
         return 1-mask
     
    

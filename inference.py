@@ -98,8 +98,8 @@ def inference(net, dataloader, device, cfg, save_dir):
         depth, pose = net([img0, img1])
         flow =None
         if depth is not None:
-            depth_map = 1/(depth*cfg['depth_scale']+cfg['depth_eps'])
-
+#            depth_map = 1/(depth*cfg['depth_scale']+cfg['depth_eps'])
+            depth_map = depth
             img_warped = inverse_warp(img0, depth_map.squeeze_(
                 dim=1), pose, intrinsics, intrinsics_inv)
             img_warped = post_process(img_warped)

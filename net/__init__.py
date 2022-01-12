@@ -5,3 +5,4 @@ from .pose_fcn import Pose
 from .model import Model
 from .discriminator import DCGAN_Discriminator
 from .seq_model import SeqModel
+from .vo import Disp

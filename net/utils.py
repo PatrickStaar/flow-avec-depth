@@ -27,3 +27,20 @@ def deconv(in_channels, out_channels):
 
 def cat(x):
     return th.cat(x, -3)
+
+
+def init_weights(modules):
+    for m in modules:
+        if  isinstance(m, nn.Conv2d) or \
+            isinstance(m, nn.ConvTranspose2d) or \
+            isinstance(m, nn.Linear):
+            nn.init.xavier_uniform_(m.weight)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.BatchNorm2d):
+            nn.init.constant_(m.weight, 1)
+            nn.init.constant_(m.bias, 0)
+
+def load(modules, path):
+    if path is not None:
+        modules.load_state_dict(th.load(path),strict=False)

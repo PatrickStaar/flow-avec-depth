@@ -195,8 +195,8 @@ def flow_warp(img, flow, padding_mode='zeros'):
     Returns:
         Source image warped to the target image plane
     """
-    check_sizes(img, 'img', 'BCHW')
-    check_sizes(flow, 'flow', 'B2HW')
+    # check_sizes(img, 'img', 'BCHW')
+    # check_sizes(flow, 'flow', 'B2HW')
 
     bs, _, h, w = flow.size()
     u = flow[:, 0, :, :]

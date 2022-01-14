@@ -71,8 +71,8 @@ def train(net, dataloader, device, optimizer, cfg, rigid=False, net_D=None, opti
         intrinsics = input_dict['intrinsics'].to(device)
         intrinsics_inv = input_dict['intrinsics_inv'].to(device)
         B, _, H, W = left.size()
-
-        disp = net(left)
+        input_data=left if not cfg['use_right'] else torch.cat([left,right],dim=1)
+        disp = net(input_data)
 
         left_warped, masks = [], []
 
@@ -123,8 +123,10 @@ def eval(net, dataloader, device, cfg):
         right = input_dict['stereo'][0].to(device)
         intrinsics = input_dict['intrinsics'].to(device)
         intrinsics_inv = input_dict['intrinsics_inv'].to(device)
+        input_data=left if not cfg['use_right'] else torch.cat([left,right],dim=1)
 
-        disp = net(left)[0]
+        disp = net(input_data)[0]
+
         disp.squeeze_(dim=1)
         pred = dict(
             disp=1/(disp+1e-3),
@@ -176,7 +178,7 @@ if __name__ == "__main__":
         from davos import Mask
         mask_gen = Mask()
 
-    net = Disp()
+    net = Disp(input_channels=6 if config['losses']['use_right'] else 3)
     net.to(device)
     net.init_weights()
 

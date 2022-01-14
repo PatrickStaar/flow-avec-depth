@@ -10,9 +10,17 @@ import os
 
 class Kitti(Dataset):
     def __init__(self, root, sample_list, input_size,
-                 train=True, seq_len=1, transform=None, target_transform=None,
-                 shuffle=True, with_depth=False, with_pose=False,
-                 interp=False, with_default_intrinsics=False, with_stereo=False, **kwargs):
+                 train=True,
+                 seq_len=1, 
+                 transform=None,
+                 target_transform=None,
+                 with_depth=False,
+                 with_pose=False,
+                 interp=False,
+                 with_default_intrinsics=False,
+                 with_stereo=False,
+                 mode='png',
+                **kwargs):
 
         super(Kitti, self).__init__()
 
@@ -25,6 +33,7 @@ class Kitti(Dataset):
         self.gt_H, self.gt_W = 375, 1242
         self.cast = {'l': 2, 'r': 3}
         self.stereo = {'l': 'r', 'r': 'l'}
+        self.mode=mode
 
         self.with_depth = with_depth
         self.with_pose = with_pose
@@ -43,7 +52,7 @@ class Kitti(Dataset):
         frame_id = int(frame_id)
         inputs = {}
 
-        if self.intrinsics:
+        if self.intrinsics is not None:
             intrinsics = self.intrinsics
         else:
             intrinsics = self._set_intrinsics(os.path.dirname(
@@ -77,9 +86,9 @@ class Kitti(Dataset):
 
         return inputs
 
-    def get_img(self, scene, frame_id, side, mode='.png'):
+    def get_img(self, scene, frame_id, side):
         path = os.path.join(self.root, scene, 'image_0{}/data'.format(
-            self.cast[side]), '{:010d}{}'.format(frame_id, mode))
+            self.cast[side]), '{:010d}.{}'.format(frame_id, self.mode))
         return Image.open(path)
 
     def get_depth(self, scene, frame_id, side):

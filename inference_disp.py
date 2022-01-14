@@ -17,6 +17,7 @@ MIN_DEPTH = 1e-3
 MAX_DEPTH = 80
 BASELINE = 0.54
 FOCAL_LEN = 721.54
+USE_RIGHT = False
 
 
 def get_time():
@@ -84,7 +85,7 @@ def post_process(img):
 
 
 @torch.no_grad()
-def inference(net, dataloader, device, cfg, save_dir):
+def inference(net, dataloader, device, save_dir):
 
     eps = 1e-7
     net.eval()
@@ -99,7 +100,10 @@ def inference(net, dataloader, device, cfg, save_dir):
         depth_gt = input_dict['depth_gt'].numpy().squeeze()
         gt_height, gt_width = depth_gt.shape
 
-        disp = net(img0)[0]/2
+        if USE_RIGHT:
+            disp = net(torch.cat([img0,img1],dim=1))[0]/2
+        else:
+            disp=net(img0)[0]/2
         img_warped = flow_warp(
             img1, torch.cat([-disp, torch.zeros_like(disp)], dim=1)
         )
@@ -189,8 +193,8 @@ print('Torch Device:', device)
 # 定义saver
 
 save_pth = config['save_pth']
-
-net = Disp()
+USE_RIGHT=config['use_right']
+net = Disp(input_channels=6 if USE_RIGHT else 3)
 net.to(device)
 net.load_state_dict(torch.load(config['eval_weights']), strict=False)
 # 启动summary
@@ -199,4 +203,4 @@ global_steps = 0
 print('Val Samples:', len(val_loader))
 # 开始迭代
 
-inference(net, val_loader, device, config['losses'], save_dir)
+inference(net, val_loader, device, save_dir)

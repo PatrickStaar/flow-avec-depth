@@ -21,15 +21,16 @@ config=dict(
             seq_len=1,
             # rigid=True,
             input_size=(192,640),
-            with_default_intrinsics=None,
+            with_default_intrinsics=True,
             with_stereo=True,
+            with_depth=False,
             shuffle=True,
-            pin_memory=False,
+            pin_memory=True,
             workers=16
         ),
         val=dict(
             root='/dataset/KITTI',
-            sample_list='split/eigen_full/val_no_static_l.txt',
+            sample_list='split/eigen_full/val_files_l.txt',
             transform=Compose([
                 Scale(192,640),
                 ArrayToTensor(),
@@ -38,7 +39,7 @@ config=dict(
             batch_size=1,
             seq_len=1,
             input_size=(192,640),
-            with_default_intrinsics=None,
+            with_default_intrinsics=True,
             with_depth=True, 
             with_stereo=True, 
             with_pose=False,
@@ -61,8 +62,9 @@ config=dict(
         pose='pretrain/resnet18.pth',
     ),
     # optimizer
-    max_epoch=150,
-    lr = 1e-3,
+    max_epoch=100,
+    lr = 2e-4,
+    
 
     # losses
     losses=dict(
@@ -70,6 +72,7 @@ config=dict(
         depth_scale=10,
         multi_scale=5,
         depth_eps=0.1,
+        use_right=True,
         weights=dict(
             reprojection_loss=1,
             depth_smo=0.1,
